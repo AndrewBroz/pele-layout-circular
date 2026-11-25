@@ -67,9 +67,9 @@ If it lands, this package becomes a plain layout registration.
 
 ## Development
 
-`layout-circular` is a devDependency that the build compiles in. Until
-it has a remote, it is installed from `../layout-circular`, so check out
-both repos side by side and build the core first.
+`layout-circular` is a devDependency that the build compiles in. It
+installs from GitHub, and npm builds it on install. To work on both at
+once, `npm link` a local checkout of the core.
 
 Three gates, all green before committing changes to `src/`:
 

@@ -5,8 +5,8 @@ The circular layout for Pele. Read `README.md`, `docs/PLAN.md` and
 
 ## Where work belongs
 
-- The placement math lives in `../layout-circular`. Change it there,
-  never by copying it here.
+- The placement math lives in layout-circular (`../layout-circular`).
+  Change it there, never by copying it here.
 - The mermaid codebase's layout is `../mermaid-layout-circular`.
 - Record each decision in the repo where the change is made, when it
   is made. `docs/PLAN.md` holds the decision points ahead.

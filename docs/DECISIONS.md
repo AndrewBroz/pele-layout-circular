@@ -65,3 +65,8 @@ Append-only, dated. The plan these belong to is `docs/PLAN.md`.
   types import only from `pele`. The JavaScript bundle imports nothing
   at runtime. Until layout-circular has a remote, it is installed from
   `../layout-circular`, which CI on GitHub can't resolve.
+- **2026-11-25 — The core installs from GitHub.** With layout-circular
+  pushed, the devDependency is `github:AndrewBroz/layout-circular`.
+  npm fetches it over HTTPS and builds it on install, so CI resolves
+  it; an install with SSH disabled and an empty cache passed every
+  test. The lockfile pins the commit.
