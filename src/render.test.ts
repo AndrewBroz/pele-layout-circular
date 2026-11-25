@@ -141,6 +141,73 @@ describe('withCircularLayout', () => {
   });
 });
 
+describe('straight edges', () => {
+  const TRIANGLE = 'flowchart LR\n  A[Alpha] --> B[Bravo] --> C[Charlie] --> A';
+  const withCurve = (curve: string) =>
+    `---\nconfig:\n  layout: circular\n  flowchart:\n    curve: ${curve}\n---\n${TRIANGLE}`;
+
+  /** Each edge's drawn line, from its path's start to its arrowhead's tip. */
+  const linesOf = (svg: string) =>
+    childGroups(findGroup(svg, 'pele-edges')!.inner).map((el) => {
+      const [, start, end] = /^L_(\w+)_(\w+)_\d+$/.exec(attr(el.open, 'data-id')!)!;
+      const d = attr(/<path\b[^>]*>/.exec(el.inner)![0], 'd')!;
+      const tip = /class="pele-marker" d="M([-\d.]+),([-\d.]+)/.exec(el.inner)!;
+      const points = [...d.matchAll(/(-?[\d.]+),(-?[\d.]+)/g)].map((m) => ({ x: Number(m[1]), y: Number(m[2]) }));
+      return { start: start!, end: end!, points: [...points, { x: Number(tip[1]), y: Number(tip[2]) }] };
+    });
+
+  /** Largest distance of any point from the line through the first and last. */
+  const bend = (points: { x: number; y: number }[]) => {
+    const a = points[0]!;
+    const b = points[points.length - 1]!;
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    return Math.max(...points.map((p) => Math.abs((b.x - a.x) * (a.y - p.y) - (a.x - p.x) * (b.y - a.y)) / len));
+  };
+
+  /** How far a point sits from the outline of a node's box. */
+  const offBorder = (p: { x: number; y: number }, n: Node) => {
+    const box = markupBox(n.inner);
+    const tx = Math.abs(p.x - n.x);
+    const ty = Math.abs(p.y - n.y);
+    const inside = tx <= box.maxX + 0.6 && ty <= box.maxY + 0.6;
+    return inside ? Math.min(Math.abs(tx - box.maxX), Math.abs(ty - box.maxY)) : Infinity;
+  };
+
+  it('draws a three-cycle with curve: linear as three straight edges, border to border', () => {
+    const { svg } = render(withCurve('linear'));
+    const nodes = nodesOf(svg);
+    const lines = linesOf(svg);
+    expect(lines).toHaveLength(3);
+    for (const { start, end, points } of lines) {
+      // Coordinates are written to two decimals.
+      expect(bend(points), `${start}->${end} bends`).toBeLessThan(0.05);
+      expect(offBorder(points[0]!, nodes.get(start)!), `${start}->${end} start`).toBeLessThan(0.6);
+      expect(offBorder(points.at(-1)!, nodes.get(end)!), `${start}->${end} tip`).toBeLessThan(0.6);
+    }
+  });
+
+  it("splits an opposite pair 8px apart, enough for Pele's arrowheads", () => {
+    const source = withCurve('linear').replace(TRIANGLE, `${TRIANGLE}\n  B --> A`);
+    const lines = linesOf(render(source).svg);
+    const there = lines.find((l) => l.start === 'A' && l.end === 'B')!.points;
+    const back = lines.find((l) => l.start === 'B' && l.end === 'A')!.points;
+    const [a, b] = [there[0]!, there.at(-1)!];
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    const gap = Math.abs(((b.x - a.x) * (a.y - back[0]!.y) - (a.x - back[0]!.x) * (b.y - a.y)) / len);
+    expect(gap).toBeCloseTo(8, 1);
+  });
+
+  it('keeps the arcs by default and for any other curve', () => {
+    for (const source of [circular(TRIANGLE), withCurve('basis')]) {
+      for (const { start, end, points } of linesOf(render(source).svg)) {
+        expect(bend(points), `${start}->${end}`).toBeGreaterThan(1);
+      }
+    }
+    // Placement is the same either way.
+    expect([...nodesOf(render(withCurve('linear')).svg)]).toEqual([...nodesOf(render(circular(TRIANGLE)).svg)]);
+  });
+});
+
 describe('escaping', () => {
   it('writes back a link color from the diagram escaped, as Pele does', () => {
     // A quote gets through the parser into the stroke color.

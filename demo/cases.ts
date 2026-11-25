@@ -3,6 +3,8 @@ export interface Case {
   wide?: boolean;
   /** The layout the circular pane asks for; defaults to circular. */
   layout?: 'circular' | 'circular-ccw';
+  /** The flowchart curve; 'linear' draws straight edges. */
+  curve?: string;
   /** Extra top-level frontmatter lines, such as a title. */
   frontmatter?: string;
   /** The flowchart body, with no frontmatter. */
@@ -20,6 +22,14 @@ const waterCycle = `flowchart LR
 export const cases: Case[] = [
   { title: 'a pure cycle: the water cycle', body: waterCycle },
   { title: 'the same cycle counter-clockwise (circular-ccw)', layout: 'circular-ccw', body: waterCycle },
+  {
+    title: 'straight edges (curve: linear): a triangle, an opposite pair, a label',
+    curve: 'linear',
+    body: `flowchart LR
+  A[Plan] -->|then| B[Build] --> C[Ship] --> A
+  C --> B
+`,
+  },
   {
     title: 'a chord shortcut and edge labels',
     wide: true,
@@ -186,8 +196,13 @@ export const cases: Case[] = [
 
 /** The diagram's source as the circular pane renders it. */
 export const circularSource = (c: Case): string =>
-  `---\n${c.frontmatter ?? ''}config:\n  layout: ${c.layout ?? 'circular'}\n---\n${c.body}`;
+  `---\n${c.frontmatter ?? ''}config:\n  layout: ${c.layout ?? 'circular'}\n${
+    c.curve ? `  flowchart:\n    curve: ${c.curve}\n` : ''
+  }---\n${c.body}`;
 
 /** The same diagram with no layout line: Pele draws it its own way. */
-export const peleSource = (c: Case): string =>
-  c.frontmatter ? `---\n${c.frontmatter}---\n${c.body}` : c.body;
+export const peleSource = (c: Case): string => {
+  const config = c.curve ? `config:\n  flowchart:\n    curve: ${c.curve}\n` : '';
+  const front = `${c.frontmatter ?? ''}${config}`;
+  return front ? `---\n${front}---\n${c.body}` : c.body;
+};

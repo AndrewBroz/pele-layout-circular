@@ -120,3 +120,20 @@ Append-only, dated. The plan these belong to is `docs/PLAN.md`.
   Pele, an edge over a fill gets a casing instead of an ink where its
   own style sets a stroke, or where the fill's ink is unknown. Only hex
   and named colors are read, as before.
+- **2026-11-25 — `curve: linear` draws straight edges.** A diagram
+  whose config sets `flowchart.curve: linear` gets the core's
+  `edges: 'straight'`: the ring becomes a polygon, and a three-cycle a
+  triangle. The owner chose this knob over a new layout name, for the
+  reasons recorded in layout-circular's DECISIONS. Pele already reads
+  `flowchart.curve` from frontmatter, for its own layout. Only
+  `linear` maps; every other curve keeps the arcs. Like
+  `circular-ccw`, the diagram's own config outranks options set in
+  code. A per-edge `curve` is not read. The demo gallery has a case
+  for it. This needs a release of layout-circular with the `edges`
+  option.
+- **2026-11-25 — Parallel lines 8px apart.** layout-circular's
+  `parallelGap` sets how far apart parallel straight edges sit. Its
+  default, 10, is sized for mermaid's arrowheads. The wrapper passes
+  8: Pele's head is 8px long and 0.42 of that wide on each side of its
+  line, so 8px leaves about 4px of daylight to the sibling line.
+  Options set in code still override it.

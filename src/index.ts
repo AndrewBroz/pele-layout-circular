@@ -38,17 +38,26 @@ export const withCircularLayout = <Model extends FlowchartModel>(
       autoDirection: false,
     });
     const flow = config.flowchart;
-    const nodeSpacing =
-      typeof flow === 'object' && flow !== null && !Array.isArray(flow) ? (flow as Record<string, unknown>).nodeSpacing : undefined;
+    const flowConfig =
+      typeof flow === 'object' && flow !== null && !Array.isArray(flow) ? (flow as Record<string, unknown>) : {};
+    const nodeSpacing = flowConfig.nodeSpacing;
     return renderCircular(
       model,
       base,
       {
         ...(typeof nodeSpacing === 'number' && { spacing: nodeSpacing }),
+        // Pele's arrowhead is ARROW = 8 long and 0.42 of that wide on
+        // each side of its line (`marker` in Pele's `svg/edges.ts`), so
+        // an 8px gap clears the sibling line by about 4px. The core's
+        // default is sized for mermaid's larger heads.
+        parallelGap: 8,
         ...options,
         // The diagram picked circular-ccw by name in its own config, the
         // most local signal there is, so it outranks options set in code.
         ...(name === 'circular-ccw' && { direction: 'counterclockwise' as const }),
+        // `curve` already means edge shape, so a linear curve draws
+        // straight edges. Every other curve keeps the arcs.
+        ...(flowConfig.curve === 'linear' && { edges: 'straight' as const }),
       },
       renderOptions,
       titleWidth(flowchart, model, config, renderOptions)
