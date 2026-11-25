@@ -1,0 +1,59 @@
+{
+  "name": "pele-layout-circular",
+  "version": "0.1.0",
+  "description": "Circular layout for Pele flowcharts: nodes on a circle, edges as arcs",
+  "type": "module",
+  "module": "dist/pele-layout-circular.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/pele-layout-circular.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "vite build && dts-bundle-generator --project tsconfig.build.json --external-inlines layout-circular --no-check --no-banner -o dist/index.d.ts src/index.ts",
+    "prepare": "npm run build",
+    "test": "vitest run",
+    "lint": "eslint . && tsc -p tsconfig.json"
+  },
+  "keywords": [
+    "pele",
+    "mermaid",
+    "layout",
+    "circular",
+    "cycle",
+    "diagram"
+  ],
+  "author": "Andrew Broz",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AndrewBroz/pele-layout-circular.git"
+  },
+  "license": "MIT",
+  "peerDependencies": {
+    "pele": "^1.13.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "dts-bundle-generator": "^9.5.1",
+    "eslint": "^10.8.0",
+    "layout-circular": "file:../layout-circular",
+    "pele": "^1.13.0",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.46.0",
+    "vite": "^7.0.0",
+    "vitest": "^4.0.0"
+  },
+  "sideEffects": false,
+  "homepage": "https://github.com/AndrewBroz/pele-layout-circular#readme",
+  "bugs": {
+    "url": "https://github.com/AndrewBroz/pele-layout-circular/issues"
+  }
+}

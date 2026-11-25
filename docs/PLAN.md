@@ -97,6 +97,10 @@ draw these itself and keep matching Pele's look by hand as Pele
 changes. Keep that layer as thin as possible; it's the part phase 2
 deletes.
 
+Built 2026-11-25. The layer is thinner than planned: Pele draws the
+diagram first, and the wrapper keeps Pele's drawing of nodes, labels
+and groups, redrawing only the edges (see `DECISIONS.md`).
+
 **Phase 2: the hook.** See decision point A.
 
 ## Decision points
