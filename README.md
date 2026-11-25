@@ -67,6 +67,9 @@ If it lands, this package becomes a plain layout registration.
   colors a line drawn wholly inside a filled group to contrast with the
   fill. On the circle, a line can move into or out of a filled group
   without its color changing.
+- Two sibling subgraphs on the cycle can touch or overlap near the
+  ring's middle. The demo gallery shows it in the "subgraphs on the
+  cycle" case, the water cycle with Atmosphere and Land.
 
 ## Development
 
