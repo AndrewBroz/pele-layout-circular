@@ -61,9 +61,12 @@ If it lands, this package becomes a plain layout registration.
 
 ## Not handled yet
 
-- Edges into or out of a collapsed subgraph are dropped.
-- Pele's casings, the halo an edge gets where it crosses a filled
-  group, are not drawn.
+- An edge that points at a subgraph itself, rather than a node inside
+  it, is dropped. Edges into a collapsed subgraph are drawn.
+- An edge keeps the color Pele chose for it in Pele's own layout. Pele
+  colors a line drawn wholly inside a filled group to contrast with the
+  fill. On the circle, a line can move into or out of a filled group
+  without its color changing.
 
 ## Development
 

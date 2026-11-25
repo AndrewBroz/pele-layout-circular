@@ -64,7 +64,7 @@ const markersOf = (edge: FlowchartModel['edges'][number]): [string, string] => {
 
 /** A marker with its tip at `p`, pointing along unit `(dx, dy)`, drawn
  *  as Pele draws it (`marker` in Pele's `svg/edges.ts`). */
-const marker = (type: string, p: Point, dx: number, dy: number, color: string): string => {
+const marker = (type: string, p: Point, dx: number, dy: number, color: string, stroke = 'none'): string => {
   const nx = -dy;
   const ny = dx;
   if (type === 'arrow_point') {
@@ -73,10 +73,10 @@ const marker = (type: string, p: Point, dx: number, dy: number, color: string): 
     const half = ARROW * 0.42;
     return `<path class="pele-marker" d="M${num(p.x)},${num(p.y)}L${num(bx + nx * half)},${num(by + ny * half)}L${num(
       bx - nx * half
-    )},${num(by - ny * half)}Z" fill="${color}" stroke="none"/>`;
+    )},${num(by - ny * half)}Z" fill="${color}" stroke="${stroke}"/>`;
   }
   if (type === 'arrow_circle') {
-    return `<circle class="pele-marker" cx="${num(p.x - dx * 4)}" cy="${num(p.y - dy * 4)}" r="3.5" fill="${color}" stroke="none"/>`;
+    return `<circle class="pele-marker" cx="${num(p.x - dx * 4)}" cy="${num(p.y - dy * 4)}" r="3.5" fill="${color}" stroke="${stroke}"/>`;
   }
   if (type === 'arrow_cross') {
     const cx = p.x - dx * 4;
@@ -92,14 +92,165 @@ const marker = (type: string, p: Point, dx: number, dy: number, color: string): 
   return '';
 };
 
+/** How much wider a casing is than its edge (`CASE` in Pele's `svg/edges.ts`). */
+const CASE = 4;
+
+/** Pele's own casing layer (`casingsSvg` in Pele's `svg/edges.ts`). */
+const CASINGS_OPEN = `<g class="pele-casings" fill="none" stroke="var(--_bg)" stroke-width="${1 + CASE}" stroke-linecap="round" stroke-linejoin="round" pointer-events="none">`;
+
+/** A share from 0 to 1, or NaN for anything but a plain number or
+ *  percentage (`amount` in Pele's `svg/ink.ts`). */
+const amount = (raw: string, full: number): number => {
+  const m = /^[+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]?\d+)?(%|deg|grad|rad|turn)?$/i.exec(raw);
+  if (!m || (m[1] && m[1] !== '%')) return NaN;
+  return Math.min(Math.max(parseFloat(raw) / (m[1] ? 100 : full), 0), 1);
+};
+
+/**
+ * Whether a group's style attribute paints a fill (`paints` in Pele's
+ * `svg/ink.ts`). Unknown colors and opacities count as opaque. Only a
+ * hex color carries its own alpha here: the flowchart grammar can't
+ * spell `rgba()`, whose parentheses it rejects.
+ */
+const paints = (style: string): boolean => {
+  const fill = /[";]fill:([^;"]*)/.exec(style)?.[1]!.trim().toLowerCase();
+  if (!fill || fill === 'none' || fill === 'transparent') return false;
+  let scale = 1;
+  for (const [, v] of style.matchAll(/[";](?:fill-)?opacity:([^;"]*)/g)) scale *= amount(v!.trim(), 1);
+  const hex = /^#([\da-f]{3,4}|[\da-f]{6}|[\da-f]{8})$/.exec(fill)?.[1];
+  const alpha = hex?.length === 4 ? parseInt(hex[3]!, 16) / 15 : hex?.length === 8 ? parseInt(hex.slice(6), 16) / 255 : 1;
+  return alpha * (Number.isNaN(scale) ? 1 : scale) > 0;
+};
+
+/** Whether a segment overlaps a box, by Liang-Barsky clipping (`clips`
+ *  in Pele's `svg/edges.ts`). */
+const clips = (a: Point, b: Point, box: Box): boolean => {
+  let lo = 0;
+  let hi = 1;
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  for (const [p, q] of [
+    [-dx, a.x - box.minX],
+    [dx, box.maxX - a.x],
+    [-dy, a.y - box.minY],
+    [dy, box.maxY - a.y],
+  ] as const) {
+    if (p === 0) {
+      if (q < 0) hi = -1;
+    } else if (p < 0) lo = Math.max(lo, q / p);
+    else hi = Math.min(hi, q / p);
+  }
+  return lo < hi;
+};
+
+/**
+ * Whether an edge crosses the border of a filled group, where Pele
+ * draws it a casing (`fillUnder` and `enters` in Pele's `svg/edges.ts`).
+ * An edge that touches a fill counts; one wholly inside it does not.
+ * Pele insets each box by half a pixel, so an edge along a border
+ * doesn't count as entering.
+ */
+const crossesFill = (line: Point[], tips: Point[], fills: Box[]): boolean => {
+  const bounds = emptyBox();
+  for (const p of line.concat(tips)) grow(bounds, p.x, p.y);
+  for (const f of fills) {
+    const inset = { minX: f.minX + 0.5, minY: f.minY + 0.5, maxX: f.maxX - 0.5, maxY: f.maxY - 0.5 };
+    if (bounds.maxX < inset.minX || bounds.minX > inset.maxX || bounds.maxY < inset.minY || bounds.minY > inset.maxY) continue;
+    let touched = false;
+    for (let k = 0; k + 1 < line.length && !touched; k++) {
+      const a = line[k]!;
+      const b = line[k + 1]!;
+      const off =
+        (a.x < inset.minX && b.x < inset.minX) ||
+        (a.x > inset.maxX && b.x > inset.maxX) ||
+        (a.y < inset.minY && b.y < inset.minY) ||
+        (a.y > inset.maxY && b.y > inset.maxY);
+      touched = !off && clips(a, b, inset);
+    }
+    for (const t of tips) touched ||= t.x > inset.minX && t.x < inset.maxX && t.y > inset.minY && t.y < inset.maxY;
+    if (touched && (bounds.minX < f.minX || bounds.maxX > f.maxX || bounds.minY < f.minY || bounds.maxY > f.maxY)) return true;
+  }
+  return false;
+};
+
+/**
+ * A wider page-colored stroke under an edge, as faint as it, with its
+ * markers stripped of their class so marker styles skip them (`casing`
+ * in Pele's `svg/edges.ts`). `line` is the edge's style attribute as
+ * Pele wrote it, still escaped, so what is copied from it stays safe.
+ */
+const casing = (d: string, markers: string, line: string, thick: boolean): string => {
+  const decl = (prop: string): string | undefined =>
+    line.includes(prop) ? new RegExp(`[";]${prop}:([^;"]+);`).exec(line)?.[1]!.trim() : undefined;
+  const stroke = decl('stroke');
+  if (stroke === 'none' || stroke === 'transparent') return '';
+  // Pele draws a thick edge 2.5 wide.
+  const width = thick ? '2.5' : decl('stroke-width');
+  let attrs = '';
+  let style = '';
+  if (width !== undefined && /^[\d.]+(?:px)?$/.test(width)) {
+    if (parseFloat(width) !== 1) attrs = ` stroke-width="${num(parseFloat(width) + CASE)}"`;
+  } else if (width !== undefined) {
+    style += `stroke-width:calc(${width} + ${CASE}px);`;
+  }
+  for (const prop of ['opacity', 'stroke-opacity']) {
+    const value = decl(prop);
+    if (value !== undefined) style += `${prop}:${value};`;
+  }
+  const body = `<path d="${d}"/>` + markers.replace(/ class="pele-marker"/g, '');
+  return attrs || style ? `<g${attrs}${style ? ` style="${style}"` : ''}>${body}</g>` : body;
+};
+
 const unit = (from: Point, to: Point): [number, number] => {
   const len = Math.hypot(to.x - from.x, to.y - from.y) || 1;
   return [(to.x - from.x) / len, (to.y - from.y) / len];
 };
 
-/** Edge ids as Pele assigns them (`buildFlowGraph`). */
-const edgeId = (edge: FlowchartModel['edges'][number], index: number): string =>
-  edge.id || `L_${edge.start}_${edge.end}_${index}`;
+/**
+ * What each hidden node and subgraph collapses into: its outermost
+ * collapsed subgraph (`outermostCollapsed` and `collapsedInto` in
+ * `buildFlowGraph`, Pele's `diagrams/flowchart/graph.ts`). Pele draws a
+ * subgraph whose metadata says `view: collapsed` as a single node.
+ */
+const collapsedInto = (model: FlowchartModel): Map<string, string> => {
+  const into = new Map<string, string>();
+  const byId = new Map(model.subgraphs.map((sg) => [sg.id, sg]));
+  const isCollapsed = (id: string) => byId.get(id)?.metadata?.view === 'collapsed';
+  if (!model.subgraphs.some((sg) => isCollapsed(sg.id))) return into;
+  const parent = new Map<string, string>();
+  for (const sg of model.subgraphs) for (const child of sg.nodes) if (byId.has(child)) parent.set(child, sg.id);
+  const outermost = (id: string): string | undefined => {
+    let found: string | undefined;
+    // The seen set stops a cycle of parents, as Pele's walk does.
+    const seen = new Set<string>();
+    for (let at: string | undefined = id; at !== undefined && !seen.has(at); at = parent.get(at)) {
+      seen.add(at);
+      if (isCollapsed(at)) found = at;
+    }
+    return found;
+  };
+  for (const sg of model.subgraphs) {
+    const top = outermost(sg.id);
+    if (top === undefined) continue;
+    if (sg.id !== top) into.set(sg.id, top);
+    for (const child of sg.nodes) if (child !== top) into.set(child, top);
+  }
+  return into;
+};
+
+/** The edges Pele draws, with ids as Pele assigns them (`buildFlowGraph`):
+ *  an end inside a collapsed subgraph moves onto it, and an edge whose
+ *  two ends collapse into the same node is dropped. */
+const drawnEdges = (model: FlowchartModel, into: Map<string, string>) => {
+  const out: { e: FlowchartModel['edges'][number]; id: string; start: string; end: string }[] = [];
+  model.edges.forEach((e, index) => {
+    const start = into.get(e.start) ?? e.start;
+    const end = into.get(e.end) ?? e.end;
+    if (start === end && (into.has(e.start) || into.has(e.end))) return;
+    out.push({ e, id: e.id || `L_${start}_${end}_${index}`, start, end });
+  });
+  return out;
+};
 
 const translateOf = (open: string): Point => {
   const m = /translate\(([-\d.e]+),\s*([-\d.e]+)\)/.exec(attr(open, 'transform') ?? '');
@@ -145,10 +296,13 @@ export const renderCircular = (
   }
 
   // Innermost group of each node, as Pele resolves it: the first
-  // declared subgraph that lists the node wins.
+  // declared subgraph that lists the node wins, and a subgraph hidden
+  // inside a collapsed one is no group.
+  const into = collapsedInto(model);
   const parentOf = new Map<string, string>();
   for (let i = model.subgraphs.length - 1; i >= 0; i--) {
     const sg = model.subgraphs[i]!;
+    if (into.has(sg.id)) continue;
     for (const id of sg.nodes) parentOf.set(id, sg.id);
   }
 
@@ -176,15 +330,15 @@ export const renderCircular = (
     });
   }
   const placedIds = new Set(layoutNodes.map((n) => n.id));
-  const modelEdges = model.edges.map((e, i) => ({ e, id: edgeId(e, i) }));
+  const modelEdges = drawnEdges(model, into);
   const layoutEdges: LayoutEdgeInput[] = [];
-  for (const { e, id } of modelEdges) {
-    if (!placedIds.has(e.start) || !placedIds.has(e.end)) continue;
+  for (const { id, start, end } of modelEdges) {
+    if (!placedIds.has(start) || !placedIds.has(end)) continue;
     const label = labels.get(id)?.box;
     layoutEdges.push({
       id,
-      start: e.start,
-      end: e.end,
+      start,
+      end,
       ...(label && { labelWidth: label.maxX - label.minX, labelHeight: label.maxY - label.minY }),
     });
   }
@@ -301,6 +455,17 @@ export const renderCircular = (
     nodesOut += open + n.el.inner + '</g>';
   }
 
+  // Filled group boxes, as Pele collects them: an edge that crosses
+  // one's border gets a casing.
+  const fills: Box[] = [];
+  for (const [id, c] of clusterById) {
+    const r = newRect.get(id);
+    const rectTag = /<rect\b[^>]*>/.exec(c.el.inner)![0];
+    if (!r || !paints(/\sstyle="[^"]*"/.exec(rectTag)?.[0] ?? '')) continue;
+    fills.push({ minX: r.minX + ox, minY: r.minY + oy, maxX: r.maxX + ox, maxY: r.maxY + oy });
+  }
+
+  let casingsOut = '';
   let edgesOut = '';
   const edgesGroup = findGroup(source, 'pele-edges');
   const modelById = new Map(modelEdges.map(({ e, id }) => [id, e]));
@@ -327,6 +492,15 @@ export const renderCircular = (
     // The color can come from the diagram's own linkStyle, so it is
     // escaped again before it is written back.
     const color = escapeAttr(attr(/<[^>]*class="pele-marker"[^>]*>/.exec(el.inner)?.[0] ?? '', 'fill') ?? 'var(--_l)');
+    if (crossesFill(line, [tipStart, tipEnd], fills)) {
+      const bg = 'var(--_bg)';
+      casingsOut += casing(
+        d,
+        marker(startType, tipStart, sdx, sdy, bg, bg) + marker(endType, tipEnd, edx, edy, bg, bg),
+        /\sstyle="[^"]*"/.exec(el.open)?.[0] ?? '',
+        e.stroke === 'thick'
+      );
+    }
     edgesOut +=
       el.open +
       withAttr(pathTag, 'd', d) +
@@ -396,6 +570,7 @@ export const renderCircular = (
     head +
     title +
     layer(clustersGroup, clustersOut) +
+    (casingsOut ? CASINGS_OPEN + casingsOut + '</g>' : '') +
     layer(edgesGroup, edgesOut) +
     layer(findGroup(source, 'pele-cluster-titles'), titlesOut) +
     layer(labelsGroup, labelsOut) +

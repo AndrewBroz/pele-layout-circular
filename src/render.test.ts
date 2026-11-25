@@ -171,3 +171,95 @@ describe('markupBox', () => {
     expect([box.minX, box.minY, box.maxX, box.maxY]).toEqual([-10, -5, 10, 5]);
   });
 });
+
+describe('collapsed subgraphs', () => {
+  const COLLAPSED = 'flowchart LR\n  A --> B\n  subgraph G\n    B --> C\n  end\n  C --> D --> A\n  G@{ view: collapsed }';
+  const edgeIds = (svg: string) => childGroups(findGroup(svg, 'pele-edges')!.inner).map((el) => attr(el.open, 'data-id'));
+
+  it('draws the edges Pele reroutes onto a collapsed subgraph', () => {
+    // Pele drops B --> C, whose ends both collapse into G, and keeps the rest.
+    expect(edgeIds(render(circular(COLLAPSED)).svg)).toEqual(edgeIds(render(COLLAPSED).svg));
+  });
+
+  it('lands the rerouted arrowhead on the collapsed node', () => {
+    const { svg } = render(circular(COLLAPSED));
+    const g = nodesOf(svg).get('G')!;
+    const box = markupBox(g.inner);
+    const edge = childGroups(findGroup(svg, 'pele-edges')!.inner).find((el) => attr(el.open, 'data-id') === 'L_A_B_0')!;
+    const tip = /class="pele-marker" d="M([-\d.]+),([-\d.]+)/.exec(edge.inner)!;
+    const tx = Number(tip[1]) - g.x;
+    const ty = Number(tip[2]) - g.y;
+    expect(tx).toBeGreaterThanOrEqual(box.minX - 0.6);
+    expect(tx).toBeLessThanOrEqual(box.maxX + 0.6);
+    expect(ty).toBeGreaterThanOrEqual(box.minY - 0.6);
+    expect(ty).toBeLessThanOrEqual(box.maxY + 0.6);
+  });
+
+  it('reroutes onto the outermost collapsed subgraph', () => {
+    const body =
+      'flowchart LR\n  A --> B\n  subgraph O\n    subgraph I\n      B --> C\n    end\n    C --> E\n  end\n  E --> D --> A\n  O@{ view: collapsed }';
+    expect(edgeIds(render(circular(body)).svg)).toEqual(edgeIds(render(body).svg));
+  });
+});
+
+describe('casings', () => {
+  const FILLED = 'flowchart LR\n  E --> C\n  subgraph Air\n    C --> P\n  end\n  P --> R --> O --> E\n  style Air fill:#ffd';
+
+  const rectOf = (svg: string) => {
+    const rect = /<rect\b[^>]*>/.exec(childGroups(findGroup(svg, 'pele-clusters')!.inner)[0]!.inner)![0];
+    const [x, y, w, h] = ['x', 'y', 'width', 'height'].map((k) => Number(attr(rect, k))) as [number, number, number, number];
+    return { x, y, w, h };
+  };
+  const vertices = (d: string) => [...d.matchAll(/(-?[\d.]+),(-?[\d.]+)/g)].map((m) => [Number(m[1]), Number(m[2])] as const);
+
+  it('draws a casing under each edge that crosses a filled group, and only those', () => {
+    const { svg } = render(circular(FILLED));
+    const { x, y, w, h } = rectOf(svg);
+    const inside = ([px, py]: readonly [number, number]) => px > x && px < x + w && py > y && py < y + h;
+    const crossing: string[] = [];
+    for (const el of childGroups(findGroup(svg, 'pele-edges')!.inner)) {
+      const d = attr(/<path\b[^>]*>/.exec(el.inner)![0], 'd')!;
+      const v = vertices(d);
+      if (v.some(inside) && !v.every(inside)) crossing.push(d);
+    }
+    expect(crossing.length).toBeGreaterThan(0);
+    const casings = findGroup(svg, 'pele-casings')!;
+    const cased = [...casings.inner.matchAll(/<path d="([^"]*)"\/>/g)].map((m) => m[1]);
+    expect(cased).toEqual(crossing);
+  });
+
+  it("matches Pele's casing markup and layer order", () => {
+    const plain = render(FILLED).svg;
+    const { svg } = render(circular(FILLED));
+    const casings = findGroup(svg, 'pele-casings')!;
+    expect(casings.open).toBe(findGroup(plain, 'pele-casings')!.open);
+    expect(findGroup(svg, 'pele-clusters')!.end).toBeLessThanOrEqual(casings.start);
+    expect(casings.end).toBeLessThanOrEqual(findGroup(svg, 'pele-edges')!.start);
+    // A casing's arrowhead is page-colored and carries no marker class.
+    expect(casings.inner).toMatch(/<path d="[^"]*Z" fill="var\(--_bg\)" stroke="var\(--_bg\)"\/>/);
+    expect(casings.inner).not.toContain('pele-marker');
+  });
+
+  it("widens and fades a casing as Pele does for the edge's own style", () => {
+    // P ==> R crosses the box in both layouts; it is thick and faded.
+    const body = FILLED.replace('P --> R', 'P ==> R') + '\n  linkStyle 2 opacity:0.5';
+    const wrappers = (svg: string) => findGroup(svg, 'pele-casings')!.inner.match(/<g\b[^>]*>/g);
+    const own = wrappers(render(body).svg);
+    expect(own).toEqual(['<g stroke-width="6.5" style="opacity:0.5;">']);
+    expect(wrappers(render(circular(body)).svg)).toEqual(own);
+  });
+
+  it('draws no casings around a group without a fill', () => {
+    const { svg } = render(circular(FILLED.replace('\n  style Air fill:#ffd', '')));
+    expect(findGroup(svg, 'pele-casings')).toBeUndefined();
+  });
+
+  it('draws no casings around a group filled with nothing', () => {
+    for (const fill of ['none', 'transparent', '#ffd0', '#ffd,fill-opacity:0', '#ffd,opacity:0%']) {
+      const body = FILLED.replace('fill:#ffd', `fill:${fill}`);
+      // Pele itself draws none for this fill, so the wrapper must not.
+      expect(findGroup(render(body).svg, 'pele-casings'), fill).toBeUndefined();
+      expect(findGroup(render(circular(body)).svg, 'pele-casings'), fill).toBeUndefined();
+    }
+  });
+});

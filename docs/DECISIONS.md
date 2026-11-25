@@ -70,3 +70,19 @@ Append-only, dated. The plan these belong to is `docs/PLAN.md`.
   npm fetches it over HTTPS and builds it on install, so CI resolves
   it; an install with SSH disabled and an empty cache passed every
   test. The lockfile pins the commit.
+- **2026-11-25 — Collapsed subgraphs and casings.** Phase 1 left two
+  gaps, and both are closed. Pele draws a collapsed subgraph as a node
+  and moves each edge end inside it onto that node. The wrapper now
+  resolves edge ends the same way, from Pele's `collapsedInto` and
+  `outermostCollapsed`, and drops an edge whose two ends collapse into
+  one node, as Pele does. Edge ids needed no change: the parser already
+  names each edge, so Pele keeps the raw id. Where a redrawn edge
+  crosses the border of a filled group, the wrapper draws Pele's casing
+  under it, in a `pele-casings` layer between the group boxes and the
+  edges. The rules are copied from Pele's `svg/edges.ts` (`fillUnder`,
+  `casing`, `casingsSvg`) and `svg/ink.ts` (`paints`), and each copy
+  names its source. Only hex colors carry their own alpha in the copy
+  of `paints`: the flowchart grammar rejects the parentheses of
+  `rgba()`. Still open: an edge into an expanded subgraph is dropped,
+  and an edge's color is the one Pele chose in its own layout, even
+  where the circle moves the edge into or out of a filled group.
