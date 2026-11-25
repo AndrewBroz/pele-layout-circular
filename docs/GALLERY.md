@@ -242,7 +242,7 @@ flowchart LR
   D --> B --> T --> P[Deploy] --> M[Monitor] --> R[Retire] --> I
 ```
 
-### A group around most of the ring
+### A group around half the ring or more
 
 A group that covers half the circle or more is drawn as a band, a strip
 that follows the circle. Its title sits outside the band.
