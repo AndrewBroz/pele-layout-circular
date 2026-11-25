@@ -142,7 +142,71 @@ mermaid layout on its own? If so, it's recorded there, in its own
 ### C. What happens to options that don't translate?
 
 `look: handDrawn` first among them; Pele doesn't apply mermaid themes
-or HTML labels. Affects this repo only.
+or HTML labels. Open. Researched 2026-11-25 against Pele 1.13.0
+(`main` at `3a2f075`), its
+[compatibility page](https://pele.run/compatibility), and diagrams
+rendered through the installed Pele with and without the wrapper.
+
+The wrapper keeps Pele's drawing of nodes, labels and groups. So an
+option reaches a circular diagram as far as Pele honors it. The
+exceptions are options about placement and edges, which the wrapper
+replaces. Pele's `render()` returns the SVG, its size and its links;
+it has no channel for warnings. Pele drops what it doesn't support
+without a word, and lists the differences on its compatibility page.
+
+What each option does today:
+
+| Option | Pele | `mermaid-layout-circular` | This wrapper today |
+| --- | --- | --- | --- |
+| `look: handDrawn` | Ignored. The flowchart never reads `look`. | Drawn hand-drawn, nodes and edges. | Ignored, silently. The SVG is identical to one without it. |
+| `theme`, `themeVariables` | Mermaid themes don't apply. `themeVariables` colors only feed chart palettes. Colors come from `--pele-*` CSS variables. | Applied by mermaid. | Ignored, silently. Colors follow Pele's CSS variables. |
+| `htmlLabels` | Labels are SVG text, never HTML. Markdown bold, italic and line breaks work. | Mermaid's labels. | As Pele: Pele's labels are kept. |
+| `flowchart.curve`, an edge's `curve` | Shapes Pele's routes (`linear`, `step…`). | The arc's samples go through mermaid's `insertEdge`. | Ignored, silently. Edges are arcs either way. |
+| `flowchart.rankSpacing` | The gap between ranks. | No ranks. | No effect. A circle has no ranks. |
+| `flowchart.nodeSpacing` | The gap between nodes. | Seeds `spacing`. | Seeds `spacing`. Honored. |
+| `flowchart.wrappingWidth` | Where labels wrap. | Mermaid wraps. | Honored. Pele wraps, the wrapper keeps the size. |
+| `classDef`, `style`, `linkStyle` | Applied. | Applied. | Carried over. Node styles stay in Pele's markup; an edge's stroke and marker color go onto the redrawn edge. |
+| A subgraph's `direction` | Lays out the group's inside. | Not used. | Ignored for placement. |
+| An edge's `animate` | Not drawn in flowcharts. | Mermaid's edge code. | As Pele: not drawn. |
+| Another `layout:` (`elk`, `dagre`) | Ignored; Pele's own layout. | Not ours. | Handed to Pele unchanged. |
+
+Most rows need nothing. Placement options (`curve`, `rankSpacing`, a
+subgraph's `direction`) mean nothing on a circle. Styles and labels
+already come through, because Pele draws them. What's left is the look
+and the theme: `look: handDrawn`, `theme` and `themeVariables`. Today
+Obsidian's plugin draws circular diagrams with its own mermaid and
+keeps a diagram's `look:` and `theme:` (its README). Track 2 would
+lose that.
+
+The responses, which can be mixed per option:
+
+| Branch | Consequence | Lands in |
+| --- | --- | --- |
+| Ignore silently | Today's behavior. No code, and it matches Pele. The cost: an author who wrote `look: handDrawn` gets a clean drawing and no hint why. | this repo |
+| Document | Ignore, plus a list in the README of what a circular diagram drops, the way Pele's compatibility page does. The cost: the list is kept up as Pele changes. | this repo |
+| Warn | `console.warn` names the option. Mermaid logs a warning when a layout isn't registered, and `mermaid-layout-circular` when it drops an edge; mermaid's default log level hides both. The cost: Pele has no warnings channel, so the console is the only place, and Obsidian readers never open it. A `<desc>` in the SVG would be read aloud by screen readers. | this repo |
+| Fall back to Pele's layout | A circular diagram that asks for an unsupported look is handed to Pele whole. Mermaid falls back to dagre for an unknown layout. The cost: the author loses the circle, which they asked for by name, for the sake of a lesser option. | this repo |
+| Fall back to mermaid | The Obsidian plugin keeps its mermaid copy for circular diagrams that set `look:` or `theme:`. The cost: the plugin keeps the 1.6 MB bundle track 2 sets out to drop, and two renderers to keep alike. | `obsidian-mermaid-circular` |
+| Approximate | For `handDrawn`, the wrapper adds a seeded SVG displacement filter, or jitters the edges it redraws. For `theme`, named themes map to `--pele-*` values. The cost: an imitation that drifts from mermaid's look and Pele's both. A filter roughens text too. And it is hand-matched drawing, the layer phase 2 deletes: a layout behind the hook can't draw. | this repo |
+| Ask Pele | An issue asking Pele for `look: handDrawn`, for every diagram type. Then this package needs nothing. The cost: it's out of our hands. Pele allows no runtime dependencies and needs identical input to give identical SVG, so it can't use roughjs; it would take a seeded sketch renderer written for Pele. Asked for drop shadows and animations (issue #24), the maintainer said looks don't belong in core, and that Pele's CSS hooks are built for them. | Pele, then nothing here |
+
+#### Recommendation (not a decision)
+
+Document, for all of it. Name the dropped options in the README beside
+"Not handled yet", and point to Pele's compatibility page. That is the
+convention Pele readers already know.
+
+For `look: handDrawn` alone, add a warning. It is the one option an
+author writes on purpose and then sees no trace of. One
+`console.warn` per diagram is cheap, and harmless when unread.
+
+Don't fall back to Pele's layout: it trades the circle for the look.
+Don't approximate here: it builds the layer phase 2 removes, and Pele's
+CSS hooks already let a host add a sketchy filter itself. Asking Pele
+is cheap but unlikely, given issue #24; it fits better as a line in
+the track 1 PR than as its own request. Whether the Obsidian plugin
+keeps mermaid for hand-drawn diagrams is that plugin's call, made when
+track 2 happens.
 
 ### D. Is circular a layout, or a diagram type?
 
