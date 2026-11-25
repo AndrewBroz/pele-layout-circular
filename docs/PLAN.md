@@ -16,9 +16,11 @@ when it actually happens, not before.
 - **Obsidian already renders Mermaid with Pele.**
   `obsidian-mermaid-circular` was adapted to that (0.9.0, "circles
   survive Pele"; then "circles dress like Pele"). It works by bundling
-  its own copy of mermaid, the full 1.6 MB package, to draw circular
-  diagrams styled to look like Pele's. It needed nothing from
-  Obsidian or the Pele developers.
+  its own copy of mermaid (3,163,104 bytes minified, 860,568 gzipped,
+  measured on the plugin's own bundle) to draw circular diagrams
+  styled to look like Pele's. It needed nothing from Obsidian or the
+  Pele developers. Track 2 is built on branch `feat/pele-inside` of
+  `obsidian-mermaid-circular` and is not yet merged.
 - **Pele has no public layout hook.** It has its own parser per
   diagram type and its own layered layout. `register()` (from
   `pele/core`) swaps a whole diagram type, not a layout. Frontmatter
@@ -77,8 +79,10 @@ motivating user is this package.
 ### 2. The Obsidian plugin bundles Pele instead of mermaid
 
 Even if the plugin can't reach the copy of Pele that Obsidian bundles,
-its own copy (~230 kB gzip, no dependencies) costs far less than
-mermaid, and it looks and feels like the rest of Obsidian because it
+its own copy costs far less than mermaid. The original estimate was
+~230 kB gzip. The switch measured 187,521 bytes minified and 74,024
+gzipped (branch `feat/pele-inside` of `obsidian-mermaid-circular`, not
+yet merged). Pele has no dependencies. The plugin looks and feels like the rest of Obsidian because it
 *is* the same renderer, not an imitation of it. The plugin depends on
 this package (track 3, phase 1) in place of `mermaid-layout-circular`.
 That change is made and recorded in `obsidian-mermaid-circular`.
@@ -142,7 +146,75 @@ mermaid layout on its own? If so, it's recorded there, in its own
 ### C. What happens to options that don't translate?
 
 `look: handDrawn` first among them; Pele doesn't apply mermaid themes
-or HTML labels. Affects this repo only.
+or HTML labels. Open. Researched 2026-11-25 against Pele 1.13.0
+(`main` at `3a2f075`), its
+[compatibility page](https://pele.run/compatibility), and diagrams
+rendered through the installed Pele with and without the wrapper.
+
+The wrapper keeps Pele's drawing of nodes, labels and groups. So an
+option reaches a circular diagram as far as Pele honors it. The
+exceptions are options about placement and edges, which the wrapper
+replaces. Pele's `render()` returns the SVG, its size and its links;
+it has no channel for warnings. Pele drops what it doesn't support
+without a word, and lists the differences on its compatibility page.
+
+What each option does today:
+
+| Option | Pele | `mermaid-layout-circular` | This wrapper today |
+| --- | --- | --- | --- |
+| `look: handDrawn` | Ignored. The flowchart never reads `look`. | Drawn hand-drawn, nodes and edges. | Ignored, silently. The SVG is identical to one without it. |
+| `theme`, `themeVariables` | Mermaid themes don't apply. `themeVariables` colors only feed chart palettes. Colors come from `--pele-*` CSS variables. | Applied by mermaid. | Ignored, silently. Colors follow Pele's CSS variables. |
+| `htmlLabels` | Labels are SVG text, never HTML. Markdown bold, italic and line breaks work. | Mermaid's labels. | As Pele: Pele's labels are kept. |
+| `flowchart.curve`, an edge's `curve` | Shapes Pele's routes (`linear`, `step…`). | The arc's samples go through mermaid's `insertEdge`. | Ignored, silently. Edges are arcs either way. |
+| `flowchart.rankSpacing` | The gap between ranks. | No ranks. | No effect. A circle has no ranks. |
+| `flowchart.nodeSpacing` | The gap between nodes. | Seeds `spacing`. | Seeds `spacing`. Honored. |
+| `flowchart.wrappingWidth` | Where labels wrap. | Mermaid wraps. | Honored. Pele wraps, the wrapper keeps the size. |
+| `classDef`, `style`, `linkStyle` | Applied. | Applied. | Carried over. Node styles stay in Pele's markup; an edge's stroke and marker color go onto the redrawn edge. |
+| A subgraph's `direction` | Lays out the group's inside. | Not used. | Ignored for placement. |
+| An edge's `animate` | Not drawn in flowcharts. | Mermaid's edge code. | As Pele: not drawn. |
+| Another `layout:` (`elk`, `dagre`) | Ignored; Pele's own layout. | Not ours. | Handed to Pele unchanged. |
+
+Most rows need nothing. Placement options (`curve`, `rankSpacing`, a
+subgraph's `direction`) mean nothing on a circle. Styles and labels
+already come through, because Pele draws them. What's left is the look
+and the theme: `look: handDrawn`, `theme` and `themeVariables`. Today
+Obsidian's plugin draws circular diagrams with its own mermaid and
+keeps a diagram's `look:` and `theme:` (its README). Track 2 would
+lose that. Track 2 is now built, on branch `feat/pele-inside` of
+`obsidian-mermaid-circular`, and is not yet merged. It drops mermaid.
+If it merges as is, the plugin takes the "Ignore silently" branch and
+"Fall back to mermaid" is ruled out. The owner hasn't decided.
+
+The responses, which can be mixed per option:
+
+| Branch | Consequence | Lands in |
+| --- | --- | --- |
+| Ignore silently | Today's behavior. No code, and it matches Pele. The cost: an author who wrote `look: handDrawn` gets a clean drawing and no hint why. | this repo |
+| Document | Ignore, plus a list in the README of what a circular diagram drops, the way Pele's compatibility page does. The cost: the list is kept up as Pele changes. | this repo |
+| Warn | `console.warn` names the option. Mermaid logs a warning when a layout isn't registered, and `mermaid-layout-circular` when it drops an edge; mermaid's default log level hides both. The cost: Pele has no warnings channel, so the console is the only place, and Obsidian readers never open it. A `<desc>` in the SVG would be read aloud by screen readers. | this repo |
+| Fall back to Pele's layout | A circular diagram that asks for an unsupported look is handed to Pele whole. Mermaid falls back to dagre for an unknown layout. The cost: the author loses the circle, which they asked for by name, for the sake of a lesser option. | this repo |
+| Fall back to mermaid | The Obsidian plugin keeps its mermaid copy for circular diagrams that set `look:` or `theme:`. The cost: the plugin keeps its mermaid bundle (3,163,104 bytes minified, 860,568 gzipped) that track 2 sets out to drop, and two renderers to keep alike. This row and the plugin's support for Obsidian 1.13 and 1.14 are one decision. The branch raised `minAppVersion` to 1.15.0. Keeping the old 1.13/1.14 path, which used Obsidian's own mermaid plus `mermaid-layout-circular`, would cost about 20-25 KB. | `obsidian-mermaid-circular` |
+| Approximate | For `handDrawn`, the wrapper adds a seeded SVG displacement filter, or jitters the edges it redraws. For `theme`, named themes map to `--pele-*` values. The cost: an imitation that drifts from mermaid's look and Pele's both. A filter roughens text too. And it is hand-matched drawing, the layer phase 2 deletes: a layout behind the hook can't draw. | this repo |
+| Ask Pele | An issue asking Pele for `look: handDrawn`, for every diagram type. Then this package needs nothing. The cost: it's out of our hands. Pele allows no runtime dependencies and needs identical input to give identical SVG, so it can't use roughjs; it would take a seeded sketch renderer written for Pele. Asked for drop shadows and animations (issue #24), the maintainer said looks don't belong in core, and that Pele's CSS hooks are built for them. | Pele, then nothing here |
+
+#### Recommendation (not a decision)
+
+Document, for all of it. Name the dropped options in the README beside
+"Not handled yet", and point to Pele's compatibility page. That is the
+convention Pele readers already know.
+
+For `look: handDrawn` alone, add a warning. It is the one option an
+author writes on purpose and then sees no trace of. One
+`console.warn` per diagram is cheap, and harmless when unread.
+
+Don't fall back to Pele's layout: it trades the circle for the look.
+Don't approximate here: it builds the layer phase 2 removes, and Pele's
+CSS hooks already let a host add a sketchy filter itself. Asking Pele
+is cheap but unlikely, given issue #24; it fits better as a line in
+the track 1 PR than as its own request. Whether the Obsidian plugin
+keeps mermaid for hand-drawn diagrams is that plugin's call, and the
+owner hasn't made it. If `feat/pele-inside` merges as is, the plugin
+takes the ignore branch.
 
 ### D. Is circular a layout, or a diagram type?
 
