@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { register, render } from 'pele';
 import flowchart from 'pele/diagrams/flowchart';
 import { withCircularLayout } from './index.js';
-import { attr, childGroups, findGroup, markupBox } from './svg.js';
+import { attr, childGroups, findGroup, markupBox, withAttr } from './svg.js';
 
 register(withCircularLayout(flowchart));
 
@@ -137,6 +137,21 @@ describe('withCircularLayout', () => {
       return Math.hypot(n.get('A')!.x - n.get('B')!.x, n.get('A')!.y - n.get('B')!.y);
     };
     expect(spread(120)).toBeGreaterThan(spread(20));
+  });
+});
+
+describe('escaping', () => {
+  it('writes back a link color from the diagram escaped, as Pele does', () => {
+    // A quote gets through the parser into the stroke color.
+    const body = 'flowchart LR\n  A --> B --> C --> A\n  linkStyle 0 stroke:red"x';
+    const fill = (svg: string) => /class="pele-marker"[^>]*?fill="([^"]*)"/.exec(svg)?.[1];
+    expect(fill(render(body).svg)).toBe('red&quot;x');
+    expect(fill(render(circular(body)).svg)).toBe('red&quot;x');
+  });
+
+  it('escapes every value withAttr writes', () => {
+    expect(withAttr('<g a="1">', 'a', '"><x $1')).toBe('<g a="&quot;&gt;&lt;x $1">');
+    expect(withAttr('<g>', 'b', '"&')).toBe('<g b="&quot;&amp;">');
   });
 });
 

@@ -5,6 +5,7 @@ import {
   attr,
   childGroups,
   emptyBox,
+  escapeAttr,
   findGroup,
   grow,
   isEmpty,
@@ -323,7 +324,9 @@ export const renderCircular = (
     line[line.length - 1] = { x: tipEnd.x - edx * te, y: tipEnd.y - edy * te };
     const d = 'M' + line.map((p) => `${num(p.x)},${num(p.y)}`).join('L');
     const pathTag = /<path\b[^>]*>/.exec(el.inner)?.[0] ?? '<path/>';
-    const color = attr(/<[^>]*class="pele-marker"[^>]*>/.exec(el.inner)?.[0] ?? '', 'fill') ?? 'var(--_l)';
+    // The color can come from the diagram's own linkStyle, so it is
+    // escaped again before it is written back.
+    const color = escapeAttr(attr(/<[^>]*class="pele-marker"[^>]*>/.exec(el.inner)?.[0] ?? '', 'fill') ?? 'var(--_l)');
     edgesOut +=
       el.open +
       withAttr(pathTag, 'd', d) +

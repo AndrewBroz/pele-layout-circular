@@ -41,11 +41,17 @@ export const attr = (tag: string, name: string): string | undefined => {
   return m ? unescape(m[1]!) : undefined;
 };
 
+/** Text made safe inside a double-quoted attribute. Whatever `attr`
+ *  decoded must pass through here before it is written back. */
+export const escapeAttr = (text: string): string =>
+  text.replace(/[&<>"']/g, (c) => `&${{ '&': 'amp', '<': 'lt', '>': 'gt', '"': 'quot', "'": '#39' }[c]};`);
+
 /** The opening tag with `name` set to `value`, added when absent. */
 export const withAttr = (tag: string, name: string, value: string): string => {
+  const safe = escapeAttr(value);
   const re = new RegExp(`(\\s${name}=")[^"]*(")`);
-  if (re.test(tag)) return tag.replace(re, `$1${value}$2`);
-  return tag.replace(/(\/?>)$/, ` ${name}="${value}"$1`);
+  if (re.test(tag)) return tag.replace(re, (_, open: string, close: string) => open + safe + close);
+  return tag.replace(/(\/?>)$/, (end: string) => ` ${name}="${safe}"${end}`);
 };
 
 /** End of the element that starts at `from`, which must be a `<g`. */
