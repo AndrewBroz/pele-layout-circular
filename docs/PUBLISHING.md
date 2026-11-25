@@ -17,6 +17,19 @@ lockfile, and run the gates. Then the install no longer builds the
 core from a git checkout. The core is compiled into this package's
 bundle, so nothing changes for users.
 
+## Release order
+
+The packages depend on each other, so they release in this order.
+
+1. `layout-circular` makes its first release.
+2. This package's devDependency moves to a semver range of
+   `layout-circular`, as described above. Then this package makes its
+   first release.
+3. `obsidian-mermaid-circular` moves to the npm `pele-layout-circular`.
+
+`mermaid-layout-circular`'s devDependency on `layout-circular` can
+also move to npm once the core is published.
+
 One-time setup, in order. The package has never been published.
 
 1. First publish happens locally. npm's documentation says a
