@@ -14,7 +14,7 @@ The same diagrams drawn by mermaid are in
 
 Plan, Build, Test, Ship and Learn form the ring, the circle the nodes
 sit on. Idea is a branch, a node off the ring. The dotted arrow from
-Build to Ship is a chord. It joins two nodes that are not neighbours,
+Build to Ship is a chord. It joins two nodes that are not neighbors,
 straight across the circle. Debug, Fix and Retest form a satellite, a
 smaller cycle with its own circle.
 
@@ -77,7 +77,7 @@ flowchart LR
 A ring whose nodes all link to one more node is a wheel. The ring keeps
 its shape, and the extra node takes the middle.
 
-<img src="media/wheel.svg" width="355" alt="Six boxes on a circle, Plan at the top, each with a straight arrow in to Vision at the centre.">
+<img src="media/wheel.svg" width="355" alt="Six boxes on a circle, Plan at the top, each with a straight arrow in to Vision at the center.">
 
 ```
 ---
@@ -226,7 +226,7 @@ A subgraph (a group of nodes) keeps its members next to each other on
 the circle. A small group is drawn as a tight box. The circle turns, if
 needed, so the box clears every other node.
 
-<img src="media/lifecycle-box.svg" width="447" alt="Eight boxes on a circle. Build and Test sit inside a grey box titled Make, at the bottom right.">
+<img src="media/lifecycle-box.svg" width="447" alt="Eight boxes on a circle. Build and Test sit inside a gray box titled Make, at the bottom right.">
 
 ```
 ---
@@ -247,7 +247,7 @@ flowchart LR
 A group that covers half the circle or more is drawn as a band, a strip
 that follows the circle. Its title sits outside the band.
 
-<img src="media/lifecycle-band.svg" width="523" alt="Eight boxes on a circle. A grey curved strip titled Funded runs under six of them, from Spec to Monitor.">
+<img src="media/lifecycle-band.svg" width="523" alt="Eight boxes on a circle. A gray curved strip titled Funded runs under six of them, from Spec to Monitor.">
 
 ```
 ---
@@ -272,7 +272,7 @@ flowchart LR
 A group nested inside a band is a band too. Its title sits between it
 and the outer band. The inner group keeps its own fill.
 
-<img src="media/nested-band.svg" width="521" alt="A grey band titled Engineering under four boxes, with a yellow band titled CI inside it under Code and Test.">
+<img src="media/nested-band.svg" width="521" alt="A gray band titled Engineering under four boxes, with a yellow band titled CI inside it under Code and Test.">
 
 ```
 ---
@@ -341,11 +341,11 @@ flowchart LR
 
 ### Curved arrows and a chord
 
-By default, an arrow between neighbours on the circle is curved along
-it. An arrow between two nodes that are not neighbours is a chord, a
+By default, an arrow between neighbors on the circle is curved along
+it. An arrow between two nodes that are not neighbors is a chord, a
 straight line across the circle. Labels sit in the gaps.
 
-<img src="media/daily-arcs.svg" width="399" alt="Five boxes on a circle joined by curved, labelled arrows, with a dotted chord from Work to Home.">
+<img src="media/daily-arcs.svg" width="399" alt="Five boxes on a circle joined by curved, labeled arrows, with a dotted chord from Work to Home.">
 
 ```
 ---
@@ -363,10 +363,10 @@ flowchart LR
 
 ### Straight arrows
 
-With `flowchart.curve` set to `linear`, arrows between neighbours are
+With `flowchart.curve` set to `linear`, arrows between neighbors are
 straight, so the ring becomes a polygon.
 
-<img src="media/daily-straight.svg" width="399" alt="The same five boxes joined by straight labelled lines, making a pentagon, with the same dotted chord.">
+<img src="media/daily-straight.svg" width="399" alt="The same five boxes joined by straight labeled lines, making a pentagon, with the same dotted chord.">
 
 ```
 ---
@@ -389,7 +389,7 @@ flowchart LR
 When two straight arrows join the same two nodes, they are drawn as
 parallel lines. Each label sits on its own side.
 
-<img src="media/parallel-lines.svg" width="256" alt="Plan, Build and Ship in a triangle. Two parallel lines join Ship and Build, labelled ready above and fix below.">
+<img src="media/parallel-lines.svg" width="256" alt="Plan, Build and Ship in a triangle. Two parallel lines join Ship and Build, labeled ready above and fix below.">
 
 ```
 ---

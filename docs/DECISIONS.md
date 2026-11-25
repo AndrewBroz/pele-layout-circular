@@ -192,7 +192,7 @@ Append-only, dated. The plan these belong to is `docs/PLAN.md`.
   source is in `docs/GALLERY.md`. This follows the family's docs plan
   and `../layout-circular/docs/DOCS-STYLE.md`. `scripts/render-docs.ts`
   draws each demo case that has a `doc` name with real Pele in Node,
-  from the build, and puts it on a white card with a thin grey border
+  from the build, and puts it on a white card with a thin gray border
   so it reads on GitHub's dark theme. It sets `--pele-font` to
   Helvetica, Arial and Liberation Sans: they share Arial's metrics,
   which match the sans-serif metrics Pele measures with, so labels fit

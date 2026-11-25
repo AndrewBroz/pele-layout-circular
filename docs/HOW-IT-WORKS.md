@@ -17,7 +17,7 @@ It asks [layout-circular](https://github.com/AndrewBroz/layout-circular)
 where each one goes. Then it moves each one there and redraws the
 arrows along the circle.
 
-Because the shapes are Pele's own, Pele's node shapes, colours and CSS
+Because the shapes are Pele's own, Pele's node shapes, colors and CSS
 hooks carry over unchanged.
 
 A layout hook for Pele is proposed in
@@ -46,20 +46,21 @@ A band's title sits right outside the band. A band nested inside
 another band puts its title between the two.
 
 A box's title sits on top. layout-circular moves it to the bottom when
-spokes or chords cross the top, as in a wheel. Pele has three spots for
-a title along an edge: left, middle and right. The wrapper takes the
-first one that no arrow runs through. If arrows cross all three, it
-takes the spot layout-circular chose: the one nearest the middle that
-no arrow crosses, or the middle itself when every spot is crossed.
+spokes or chords cross the top, as in a wheel.
+
+The wrapper takes the first of Pele's three spots (left, middle, right)
+that no arrow runs through. If arrows cross all three, the title goes
+to the clear spot nearest the middle, which layout-circular finds. If
+no spot along the edge is clear, the title goes in the middle.
 
 ## Ink and casings
 
-Pele picks a text colour for each fill, so text stays readable on it.
-This colour is called the ink. An arrow drawn over a group's fill takes
+Pele picks a text color for each fill, so text stays readable on it.
+This color is called the ink. An arrow drawn over a group's fill takes
 that fill's ink.
 
 Where an arrow crosses a group's border, Pele draws a casing under it.
-A casing is a thin outline in the background colour. It keeps the line
+A casing is a thin outline in the background color. It keeps the line
 readable where it crosses the border.
 
 The wrapper does the same for its redrawn arrows, over boxes and bands

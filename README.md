@@ -3,8 +3,8 @@
 A circular layout for Pele flowcharts.
 
 [Pele](https://pele.run) draws mermaid diagrams as SVG. mermaid is a
-language for writing diagrams as text. Pele reads that language, is
-smaller than mermaid, and runs without a browser. Obsidian uses it to
+language for writing diagrams as text. Pele reads that language. It is
+smaller than mermaid and runs without a browser. Obsidian uses it to
 draw diagrams in notes.
 
 This package adds a circular layout to Pele's flowcharts. A layout
@@ -59,7 +59,8 @@ They place nodes the same way. They differ in how boxes and text are drawn.
 npm install pele pele-layout-circular
 ```
 
-Register the wrapped flowchart once, before rendering:
+Wrap Pele's flowchart with the circular layout, and register it once,
+before rendering:
 
 ```ts
 import { register } from 'pele';
@@ -79,23 +80,23 @@ Works with Pele 1.13 and later.
 `layout: circular-ccw` places them counter-clockwise.
 
 Every other flowchart feature works as Pele draws it: node shapes,
-edge labels, styles and classes. Pele takes its colours from its
+edge labels, styles and classes. Pele takes its colors from its
 `--pele-*` CSS variables, and circular diagrams use them the same way.
 
 ## Straight edges
 
-By default, an arrow between two neighbours on the circle is curved
+By default, an arrow between two neighbors on the circle is curved
 along it. Set `flowchart.curve` to `linear` to draw straight lines
 instead, so the ring becomes a polygon.
 
-An arrow between two nodes that are not neighbours is called a chord.
+An arrow between two nodes that are not neighbors is called a chord.
 A chord is always a straight line across the circle. When two straight
 arrows join the same two nodes, they are drawn as parallel lines, each
 with its label on its own side.
 
 | Curved arrows (the default) | `curve: linear` |
 | --- | --- |
-| <img src="docs/media/daily-arcs.svg" width="360" alt="Five boxes on a circle joined by curved, labelled arrows, with a dotted chord from Work to Home."> | <img src="docs/media/daily-straight.svg" width="360" alt="The same five boxes joined by straight labelled lines, making a pentagon, with the same dotted chord."> |
+| <img src="docs/media/daily-arcs.svg" width="360" alt="Five boxes on a circle joined by curved, labeled arrows, with a dotted chord from Work to Home."> | <img src="docs/media/daily-straight.svg" width="360" alt="The same five boxes joined by straight labeled lines, making a pentagon, with the same dotted chord."> |
 
 ```
 ---
@@ -117,7 +118,7 @@ flowchart LR
 
 | A small group: a box | A group around half the ring or more: a band |
 | --- | --- |
-| <img src="docs/media/lifecycle-box.svg" width="360" alt="Eight boxes on a circle. Build and Test sit inside a grey box titled Make, at the bottom right."> | <img src="docs/media/lifecycle-band.svg" width="360" alt="Eight boxes on a circle. A grey curved strip titled Funded runs under six of them, from Spec to Monitor."> |
+| <img src="docs/media/lifecycle-box.svg" width="360" alt="Eight boxes on a circle. Build and Test sit inside a gray box titled Make, at the bottom right."> | <img src="docs/media/lifecycle-band.svg" width="360" alt="Eight boxes on a circle. A gray curved strip titled Funded runs under six of them, from Spec to Monitor."> |
 
 A subgraph (a group of nodes) keeps its members next to each other on
 the circle. A small group is drawn as a tight box. The circle turns, if
@@ -135,16 +136,16 @@ More group examples are in the [gallery](docs/GALLERY.md#groups).
 
 <table>
 <tr>
-<td align="center"><img src="docs/media/branches.svg" width="380" alt="Plan, Build, Ship and Learn on a circle. Idea points in from above; Build log and Release notes hang outward."><br>Branches hang off the ring</td>
-<td align="center"><img src="docs/media/hub.svg" width="380" alt="Registry in the middle with arrows out to five boxes around it. Bravo's log hangs outward off Bravo."><br>A hub goes in the middle</td>
+<td align="center"><img src="docs/media/branches.svg" width="268" alt="Plan, Build, Ship and Learn on a circle. Idea points in from above; Build log and Release notes hang outward."><br>Branches hang off the ring</td>
+<td align="center"><img src="docs/media/hub.svg" width="345" alt="Registry in the middle with arrows out to five boxes around it. Bravo's log hangs outward off Bravo."><br>A hub goes in the middle</td>
 </tr>
 <tr>
-<td align="center"><img src="docs/media/wheel.svg" width="355" alt="Six boxes on a circle, Plan at the top, each with a straight arrow in to Vision at the centre."><br>A wheel: a ring around a hub</td>
-<td align="center"><img src="docs/media/satellite.svg" width="380" alt="Plan, Build, Ship and Learn on a circle. Debug, Fix and Test make a second, smaller circle right of Build."><br>A cycle off the ring gets its own circle</td>
+<td align="center"><img src="docs/media/wheel.svg" width="231" alt="Six boxes on a circle, Plan at the top, each with a straight arrow in to Vision at the center."><br>A wheel: a ring around a hub</td>
+<td align="center"><img src="docs/media/satellite.svg" width="327" alt="Plan, Build, Ship and Learn on a circle. Debug, Fix and Test make a second, smaller circle right of Build."><br>A cycle off the ring gets its own circle</td>
 </tr>
 <tr>
-<td align="center"><img src="docs/media/figure-eight.svg" width="380" alt="Two circles meeting at Sleep: Wake, Work and Dine on the right, Dream and Toss on the left."><br>Two cycles sharing a node: a figure-eight</td>
-<td align="center"><img src="docs/media/three-gears.svg" width="380" alt="A five-box circle meets a smaller circle at Smelt, which meets a third circle at Scrap."><br>Cycles linked in a chain, each turning the other way</td>
+<td align="center"><img src="docs/media/figure-eight.svg" width="250" alt="Two circles meeting at Sleep: Wake, Work and Dine on the right, Dream and Toss on the left."><br>Two cycles sharing a node: a figure-eight</td>
+<td align="center"><img src="docs/media/three-gears.svg" width="358" alt="A five-box circle meets a smaller circle at Smelt, which meets a third circle at Scrap."><br>Cycles linked in a chain, each turning the other way</td>
 </tr>
 </table>
 
@@ -201,7 +202,7 @@ A layout hook for Pele is proposed in
 
 `npm run dev` serves a gallery of every demo case. Each case is drawn
 twice, by this layout and by Pele's own layout, side by side. A button
-switches the colours between light and dark.
+switches the colors between light and dark.
 
 Three checks must pass before committing changes to `src/`:
 
