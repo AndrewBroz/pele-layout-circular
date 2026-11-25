@@ -39,7 +39,9 @@ flowchart LR
 Each edge between ring nodes is then a straight line from border to
 border, so a three-cycle reads as a triangle. Only `linear` selects
 straight edges. Every other curve keeps the arcs. It works with
-`circular-ccw` too.
+`circular-ccw` too. Two opposite edges become two parallel lines, 8px
+apart. A straight chord across a ring with a hub runs through the hub,
+where arcs would swerve around it.
 
 This is the Pele counterpart of
 [mermaid-layout-circular](https://github.com/AndrewBroz/mermaid-layout-circular).

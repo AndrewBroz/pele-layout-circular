@@ -185,6 +185,17 @@ describe('straight edges', () => {
     }
   });
 
+  it("splits an opposite pair 8px apart, enough for Pele's arrowheads", () => {
+    const source = withCurve('linear').replace(TRIANGLE, `${TRIANGLE}\n  B --> A`);
+    const lines = linesOf(render(source).svg);
+    const there = lines.find((l) => l.start === 'A' && l.end === 'B')!.points;
+    const back = lines.find((l) => l.start === 'B' && l.end === 'A')!.points;
+    const [a, b] = [there[0]!, there.at(-1)!];
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    const gap = Math.abs(((b.x - a.x) * (a.y - back[0]!.y) - (a.x - back[0]!.x) * (b.y - a.y)) / len);
+    expect(gap).toBeCloseTo(8, 1);
+  });
+
   it('keeps the arcs by default and for any other curve', () => {
     for (const source of [circular(TRIANGLE), withCurve('basis')]) {
       for (const { start, end, points } of linesOf(render(source).svg)) {

@@ -46,6 +46,11 @@ export const withCircularLayout = <Model extends FlowchartModel>(
       base,
       {
         ...(typeof nodeSpacing === 'number' && { spacing: nodeSpacing }),
+        // Pele's arrowhead is ARROW = 8 long and 0.42 of that wide on
+        // each side of its line (`marker` in Pele's `svg/edges.ts`), so
+        // an 8px gap clears the sibling line by about 4px. The core's
+        // default is sized for mermaid's larger heads.
+        parallelGap: 8,
         ...options,
         // The diagram picked circular-ccw by name in its own config, the
         // most local signal there is, so it outranks options set in code.

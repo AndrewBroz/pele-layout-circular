@@ -114,3 +114,9 @@ Append-only, dated. The plan these belong to is `docs/PLAN.md`.
   code. A per-edge `curve` is not read. The demo gallery has a case
   for it. This needs a release of layout-circular with the `edges`
   option.
+- **2026-11-25 — Parallel lines 8px apart.** layout-circular's
+  `parallelGap` sets how far apart parallel straight edges sit. Its
+  default, 10, is sized for mermaid's arrowheads. The wrapper passes
+  8: Pele's head is 8px long and 0.42 of that wide on each side of its
+  line, so 8px leaves about 4px of daylight to the sibling line.
+  Options set in code still override it.
