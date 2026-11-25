@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>pele-layout-circular — demo</title>
+    <style>
+      /* The page's own theme. The diagrams take --pele-* from .theme-light
+         and .theme-dark below. */
+      :root { color-scheme: light; }
+      body {
+        margin: 0;
+        padding: 2rem;
+        font-family: system-ui, sans-serif;
+        background: var(--pele-bg);
+        color: var(--pele-fg);
+      }
+      body.theme-light {
+        --pele-bg: #ffffff;
+        --pele-fg: #1f1f1f;
+        --pele-muted: #6e6e6e;
+        --pele-line: #1f1f1f;
+        --pele-surface: #f3f3f3;
+        --pele-surface-alt: #e6e6e6;
+        --pele-border: #8a8a8a;
+        --pele-accent: #5b7bd5;
+      }
+      body.theme-dark {
+        color-scheme: dark;
+        --pele-bg: #16181d;
+        --pele-fg: #e6e6e6;
+        --pele-muted: #9a9a9a;
+        --pele-line: #c8c8c8;
+        --pele-surface: #262a33;
+        --pele-surface-alt: #323744;
+        --pele-border: #6b7280;
+        --pele-accent: #7f9cf5;
+      }
+      header { display: flex; align-items: baseline; gap: 1rem; margin-bottom: 1.5rem; }
+      h1 { font-size: 1.4rem; margin: 0; }
+      button { font: inherit; padding: 0.25rem 0.75rem; cursor: pointer; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(520px, 1fr)); gap: 1.5rem; }
+      figure {
+        margin: 0;
+        border: 1px solid var(--pele-border);
+        border-radius: 6px;
+        padding: 1rem;
+      }
+      figure.wide { grid-column: 1 / -1; }
+      figcaption { font-size: 0.9rem; margin-bottom: 0.75rem; color: var(--pele-muted); }
+      .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+      .pane { min-width: 0; }
+      .pane h2 { font-size: 0.75rem; font-weight: normal; text-transform: uppercase; letter-spacing: 0.05em; color: var(--pele-muted); margin: 0 0 0.5rem; }
+      .diagram { display: flex; justify-content: center; align-items: center; min-height: 200px; }
+      .diagram svg { max-width: 100%; height: auto; }
+      .error { color: #d33; font-family: monospace; white-space: pre-wrap; }
+    </style>
+  </head>
+  <body class="theme-light">
+    <header>
+      <h1>pele-layout-circular</h1>
+      <button id="theme" type="button">Switch to dark</button>
+    </header>
+    <div class="grid" id="gallery"></div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

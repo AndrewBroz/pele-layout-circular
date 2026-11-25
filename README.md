@@ -65,6 +65,14 @@ If it lands, this package becomes a plain layout registration.
 - Pele's casings, the halo an edge gets where it crosses a filled
   group, are not drawn.
 
+## Demo
+
+`npm run dev` serves a gallery of cases. Each renders twice: through
+`withCircularLayout`, and in Pele's own layout beside it. The button
+at the top switches the `--pele-*` colors between light and dark. The
+page takes `?theme=dark` too. `demo/` is not part of the library build
+or the published package.
+
 ## Development
 
 `layout-circular` is a devDependency that the build compiles in. It
