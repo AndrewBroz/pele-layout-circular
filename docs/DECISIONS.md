@@ -70,3 +70,12 @@ Append-only, dated. The plan these belong to is `docs/PLAN.md`.
   npm fetches it over HTTPS and builds it on install, so CI resolves
   it; an install with SSH disabled and an empty cache passed every
   test. The lockfile pins the commit.
+- **2026-11-25 — A demo gallery, kept out of the package.** `npm run
+  dev` serves `demo/`. It renders each case twice, through
+  `withCircularLayout` and in Pele's own layout beside it, and has a
+  light and dark toggle for the `--pele-*` colors. A person uses it for
+  repeatable visual checks of both layouts and both themes. `demo/` is
+  outside the library build (its entry is `src/`) and outside the
+  published `files`. `npm run lint` type-checks it with its own
+  tsconfig, which adds the DOM types so `src/` itself can't use them
+  by accident.
