@@ -1,6 +1,6 @@
 {
   "name": "pele-layout-circular",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A circular layout for Pele, the mermaid renderer Obsidian uses. Nodes sit on a circle, and arrows follow it.",
   "type": "module",
   "module": "dist/pele-layout-circular.js",
