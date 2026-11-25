@@ -9,13 +9,10 @@ publishes with provenance. The workflow skips cleanly if the version
 is already on the registry. Trusted publishing needs npm 11.5.1 or
 later and Node 22.14 or later, so the workflow upgrades npm first.
 
-`package.json` has a devDependency on
-`github:AndrewBroz/layout-circular`. Leave it until the core is on
-npm. After `layout-circular` has its first release, change it to a
-semver range (for example `^0.1.0`), run `npm install` to refresh the
-lockfile, and run the gates. Then the install no longer builds the
-core from a git checkout. The core is compiled into this package's
-bundle, so nothing changes for users.
+`package.json` has a devDependency on `layout-circular` from npm, as a
+semver range. A new core release reaches this package when the range
+allows it and `npm install` refreshes the lockfile. The core is
+compiled into this package's bundle, so nothing changes for users.
 
 ## Release order
 
