@@ -103,3 +103,20 @@ Append-only, dated. The plan these belong to is `docs/PLAN.md`.
   visible on the registry; the two have the same code. 0.1.1 of this
   package is its first release from the workflow, which validates its
   trusted publisher.
+- **2026-11-25 — Edge color follows the circle.** An edge kept the
+  stroke and marker color Pele chose in its own layout. Once the circle
+  moved it into or out of a filled group, that color was stale: a light
+  fill in dark mode left the edges inside it nearly invisible. Each
+  redrawn edge now gets its ink from its new path, as Pele's
+  `overFills` does. Over a fill, the edge's group and markers take the
+  color Pele gives a line over that fill. Across a fill's border, it
+  gets a casing and keeps its plain color. Off every fill, it keeps its
+  plain color. Pele's stale `stroke=` on the edge group is removed. The
+  plain color is the one on Pele's markers, or the theme's line color
+  where Pele had inked the edge: an inked edge has no stroke color of
+  its own. The rules are copied from Pele's `svg/edges.ts` (`fillUnder`,
+  `overFills`, `edgeInk`) and `svg/ink.ts` (`ink`, `color`, `opacity`),
+  and the copy of `paints` moved beside them into `src/ink.ts`. As in
+  Pele, an edge over a fill gets a casing instead of an ink where its
+  own style sets a stroke, or where the fill's ink is unknown. Only hex
+  and named colors are read, as before.

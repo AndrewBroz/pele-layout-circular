@@ -1,6 +1,7 @@
 import { circularLayout } from 'layout-circular';
 import type { CircularLayoutOptions, LayoutEdgeInput, LayoutNodeInput, Point } from 'layout-circular';
 import type { Diagram, FlowchartModel, RenderOptions } from 'pele';
+import { ink, paints } from './ink.js';
 import {
   attr,
   childGroups,
@@ -98,30 +99,6 @@ const CASE = 4;
 /** Pele's own casing layer (`casingsSvg` in Pele's `svg/edges.ts`). */
 const CASINGS_OPEN = `<g class="pele-casings" fill="none" stroke="var(--_bg)" stroke-width="${1 + CASE}" stroke-linecap="round" stroke-linejoin="round" pointer-events="none">`;
 
-/** A share from 0 to 1, or NaN for anything but a plain number or
- *  percentage (`amount` in Pele's `svg/ink.ts`). */
-const amount = (raw: string, full: number): number => {
-  const m = /^[+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]?\d+)?(%|deg|grad|rad|turn)?$/i.exec(raw);
-  if (!m || (m[1] && m[1] !== '%')) return NaN;
-  return Math.min(Math.max(parseFloat(raw) / (m[1] ? 100 : full), 0), 1);
-};
-
-/**
- * Whether a group's style attribute paints a fill (`paints` in Pele's
- * `svg/ink.ts`). Unknown colors and opacities count as opaque. Only a
- * hex color carries its own alpha here: the flowchart grammar can't
- * spell `rgba()`, whose parentheses it rejects.
- */
-const paints = (style: string): boolean => {
-  const fill = /[";]fill:([^;"]*)/.exec(style)?.[1]!.trim().toLowerCase();
-  if (!fill || fill === 'none' || fill === 'transparent') return false;
-  let scale = 1;
-  for (const [, v] of style.matchAll(/[";](?:fill-)?opacity:([^;"]*)/g)) scale *= amount(v!.trim(), 1);
-  const hex = /^#([\da-f]{3,4}|[\da-f]{6}|[\da-f]{8})$/.exec(fill)?.[1];
-  const alpha = hex?.length === 4 ? parseInt(hex[3]!, 16) / 15 : hex?.length === 8 ? parseInt(hex.slice(6), 16) / 255 : 1;
-  return alpha * (Number.isNaN(scale) ? 1 : scale) > 0;
-};
-
 /** Whether a segment overlaps a box, by Liang-Barsky clipping (`clips`
  *  in Pele's `svg/edges.ts`). */
 const clips = (a: Point, b: Point, box: Box): boolean => {
@@ -143,17 +120,27 @@ const clips = (a: Point, b: Point, box: Box): boolean => {
   return lo < hi;
 };
 
+/** A filled group box, and its rect's style attribute as Pele wrote
+ *  it (`Fill` in Pele's `svg/edges.ts`). */
+export interface Fill {
+  box: Box;
+  style: string;
+}
+
 /**
- * Whether an edge crosses the border of a filled group, where Pele
- * draws it a casing (`fillUnder` and `enters` in Pele's `svg/edges.ts`).
- * An edge that touches a fill counts; one wholly inside it does not.
- * Pele insets each box by half a pixel, so an edge along a border
- * doesn't count as entering.
+ * The innermost fill that holds a whole edge and its marker tips, `''`
+ * where the edge crosses a fill's border, or undefined off every fill
+ * (`fillUnder` and `enters` in Pele's `svg/edges.ts`). An edge that
+ * only touches a fill counts. Pele insets each box by half a pixel, so
+ * an edge along a border doesn't count as entering.
  */
-const crossesFill = (line: Point[], tips: Point[], fills: Box[]): boolean => {
+const fillUnder = (line: Point[], tips: Point[], fills: Fill[]): Fill | '' | undefined => {
   const bounds = emptyBox();
   for (const p of line.concat(tips)) grow(bounds, p.x, p.y);
-  for (const f of fills) {
+  let holder: Fill | undefined;
+  let least = Infinity;
+  for (const fill of fills) {
+    const f = fill.box;
     const inset = { minX: f.minX + 0.5, minY: f.minY + 0.5, maxX: f.maxX - 0.5, maxY: f.maxY - 0.5 };
     if (bounds.maxX < inset.minX || bounds.minX > inset.maxX || bounds.maxY < inset.minY || bounds.minY > inset.maxY) continue;
     let touched = false;
@@ -168,9 +155,28 @@ const crossesFill = (line: Point[], tips: Point[], fills: Box[]): boolean => {
       touched = !off && clips(a, b, inset);
     }
     for (const t of tips) touched ||= t.x > inset.minX && t.x < inset.maxX && t.y > inset.minY && t.y < inset.maxY;
-    if (touched && (bounds.minX < f.minX || bounds.maxX > f.maxX || bounds.minY < f.minY || bounds.maxY > f.maxY)) return true;
+    if (!touched) continue;
+    if (bounds.minX < f.minX || bounds.maxX > f.maxX || bounds.minY < f.minY || bounds.maxY > f.maxY) return '';
+    const area = (f.maxX - f.minX) * (f.maxY - f.minY);
+    if (area < least) {
+      least = area;
+      holder = fill;
+    }
   }
-  return false;
+  return holder;
+};
+
+/**
+ * The ink for an edge drawn over the fills: the color of the innermost
+ * fill that holds it, `''` for a casing, or undefined off every fill
+ * (`overFills` and `edgeInk` in Pele's `svg/edges.ts`). An edge with
+ * its own stroke color, or over a fill whose ink is unknown, gets a
+ * casing instead of an ink.
+ */
+export const overFills = (line: Point[], tips: Point[], fills: Fill[], lineStyle: string): string | undefined => {
+  const fill = fillUnder(line, tips, fills);
+  if (!fill) return fill;
+  return (/[";]stroke:/.test(lineStyle) ? undefined : ink(fill.style)) ?? '';
 };
 
 /**
@@ -455,14 +461,15 @@ export const renderCircular = (
     nodesOut += open + n.el.inner + '</g>';
   }
 
-  // Filled group boxes, as Pele collects them: an edge that crosses
-  // one's border gets a casing.
-  const fills: Box[] = [];
+  // Filled group boxes, as Pele collects them: an edge over one takes
+  // its ink, and an edge that crosses one's border gets a casing.
+  const fills: Fill[] = [];
   for (const [id, c] of clusterById) {
     const r = newRect.get(id);
     const rectTag = /<rect\b[^>]*>/.exec(c.el.inner)![0];
-    if (!r || !paints(/\sstyle="[^"]*"/.exec(rectTag)?.[0] ?? '')) continue;
-    fills.push({ minX: r.minX + ox, minY: r.minY + oy, maxX: r.maxX + ox, maxY: r.maxY + oy });
+    const style = /\sstyle="[^"]*"/.exec(rectTag)?.[0] ?? '';
+    if (!r || !paints(style)) continue;
+    fills.push({ box: { minX: r.minX + ox, minY: r.minY + oy, maxX: r.maxX + ox, maxY: r.maxY + oy }, style });
   }
 
   let casingsOut = '';
@@ -489,20 +496,35 @@ export const renderCircular = (
     line[line.length - 1] = { x: tipEnd.x - edx * te, y: tipEnd.y - edy * te };
     const d = 'M' + line.map((p) => `${num(p.x)},${num(p.y)}`).join('L');
     const pathTag = /<path\b[^>]*>/.exec(el.inner)?.[0] ?? '<path/>';
-    // The color can come from the diagram's own linkStyle, so it is
-    // escaped again before it is written back.
-    const color = escapeAttr(attr(/<[^>]*class="pele-marker"[^>]*>/.exec(el.inner)?.[0] ?? '', 'fill') ?? 'var(--_l)');
-    if (crossesFill(line, [tipStart, tipEnd], fills)) {
+    const lineStyle = /\sstyle="[^"]*"/.exec(el.open)?.[0] ?? '';
+    // The ink Pele gave the edge in its own layout is stale: it is
+    // worked out again from where the edge runs now.
+    const over = overFills(line, [tipStart, tipEnd], fills, lineStyle);
+    // Pele's markers carry the edge's plain color, unless Pele inked
+    // the edge. An inked edge has no stroke color of its own, so its
+    // plain color is the theme's line color. The color can come from
+    // the diagram's own linkStyle, so it is escaped again before it is
+    // written back.
+    const plain =
+      attr(el.open, 'stroke') !== undefined
+        ? 'var(--_l)'
+        : escapeAttr(attr(/<[^>]*class="pele-marker"[^>]*>/.exec(el.inner)?.[0] ?? '', 'fill') ?? 'var(--_l)');
+    const color = over || plain;
+    if (over === '') {
       const bg = 'var(--_bg)';
       casingsOut += casing(
         d,
         marker(startType, tipStart, sdx, sdy, bg, bg) + marker(endType, tipEnd, edx, edy, bg, bg),
-        /\sstyle="[^"]*"/.exec(el.open)?.[0] ?? '',
+        lineStyle,
         e.stroke === 'thick'
       );
     }
+    // Pele writes the ink as the group's stroke, after its data-id. A
+    // stale one goes.
+    let open = el.open.replace(/\sstroke="[^"]*"/, '');
+    if (over) open = open.replace(/\sdata-id="[^"]*"/, (id) => `${id} stroke="${escapeAttr(over)}"`);
     edgesOut +=
-      el.open +
+      open +
       withAttr(pathTag, 'd', d) +
       marker(startType, tipStart, sdx, sdy, color) +
       marker(endType, tipEnd, edx, edy, color) +
