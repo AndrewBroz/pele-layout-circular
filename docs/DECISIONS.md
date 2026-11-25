@@ -180,3 +180,7 @@ Append-only, dated. The plan these belong to is `docs/PLAN.md`.
   One existing ink test
   changed: it relied on a box covering a non-member, the bug this
   fixes.
+- **2026-11-25 — On layout-circular 0.2.0.** The devDependency moves to
+  `^0.2.0`, which brings straight edges, straight chords, parallel
+  labels and group shapes from npm. The three branches that waited on
+  it (straight edges, straight chords, group shapes) are merged.

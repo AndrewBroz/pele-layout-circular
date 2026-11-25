@@ -37,12 +37,13 @@ flowchart LR
   A[Plan] --> B[Build] --> C[Ship] --> A
 ```
 
-Each edge between ring nodes is then a straight line from border to
-border, so a three-cycle reads as a triangle. Only `linear` selects
+Each edge between ring neighbors is then a straight line from border
+to border, so a three-cycle reads as a triangle. Only `linear` selects
 straight edges. Every other curve keeps the arcs. It works with
-`circular-ccw` too. Two opposite edges become two parallel lines, 8px
-apart. A straight chord across a ring with a hub runs through the hub,
-where arcs would swerve around it.
+`circular-ccw` too. Chords, edges between nodes that aren't neighbors,
+are straight either way. Two opposite edges become two parallel lines,
+8px apart, with their labels on either side. A chord across a ring
+with a hub runs through the hub.
 
 This is the Pele counterpart of
 [mermaid-layout-circular](https://github.com/AndrewBroz/mermaid-layout-circular).
