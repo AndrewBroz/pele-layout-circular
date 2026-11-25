@@ -184,3 +184,22 @@ Append-only, dated. The plan these belong to is `docs/PLAN.md`.
   `^0.2.0`, which brings straight edges, straight chords, parallel
   labels and group shapes from npm. The three branches that waited on
   it (straight edges, straight chords, group shapes) are merged.
+- **2026-11-25 — The docs show pictures, and a script draws them.**
+  The README had no pictures and led with a feature list. It now opens
+  with what the package does and one picture, then install, then the
+  common cases (straight edges, groups), then a grid of six shapes.
+  The internals moved to `docs/HOW-IT-WORKS.md`, and every picture's
+  source is in `docs/GALLERY.md`. This follows the family's docs plan
+  and `../layout-circular/docs/DOCS-STYLE.md`. `scripts/render-docs.ts`
+  draws each demo case that has a `doc` name with real Pele in Node,
+  from the build, and puts it on a white card with a thin gray border
+  so it reads on GitHub's dark theme. It sets `--pele-font` to
+  Helvetica, Arial and Liberation Sans: they share Arial's metrics,
+  which match the sans-serif metrics Pele measures with, so labels fit
+  on macOS, Windows and Linux. It needs Node 22.18 or later, which runs
+  TypeScript directly. Eight cases were added to the demo for the
+  pictures. The parallel-lines case writes its edges one per line:
+  with `B --> C` written twice, Pele drew three lines. The "Not
+  handled yet" heading is now "Limits", and its title item now says
+  what the code does: with every Pele spot crossed, a box title takes
+  the core's spot, not the left.

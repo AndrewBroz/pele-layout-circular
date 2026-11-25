@@ -1,5 +1,8 @@
 # Plan
 
+This plan is a record. Tracks 2 and 3 phase 1 are done.
+See DECISIONS.md for what happened.
+
 How the circular layout comes to [Pele](https://pele.run), the
 Mermaid renderer Obsidian ships. Written 2026-11-25.
 
@@ -20,7 +23,7 @@ when it actually happens, not before.
   measured on the plugin's own bundle) to draw circular diagrams
   styled to look like Pele's. It needed nothing from Obsidian or the
   Pele developers. Track 2 is built on branch `feat/pele-inside` of
-  `obsidian-mermaid-circular` and is not yet merged.
+  `obsidian-mermaid-circular` and is not yet merged (merged since).
 - **Pele has no public layout hook.** It has its own parser per
   diagram type and its own layered layout. `register()` (from
   `pele/core`) swaps a whole diagram type, not a layout. Frontmatter
@@ -181,7 +184,7 @@ and the theme: `look: handDrawn`, `theme` and `themeVariables`. Today
 Obsidian's plugin draws circular diagrams with its own mermaid and
 keeps a diagram's `look:` and `theme:` (its README). Track 2 would
 lose that. Track 2 is now built, on branch `feat/pele-inside` of
-`obsidian-mermaid-circular`, and is not yet merged. It drops mermaid.
+`obsidian-mermaid-circular`, and is not yet merged (merged since). It drops mermaid.
 If it merges as is, the plugin takes the "Ignore silently" branch and
 "Fall back to mermaid" is ruled out. The owner hasn't decided.
 

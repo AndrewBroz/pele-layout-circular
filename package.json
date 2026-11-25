@@ -1,7 +1,7 @@
 {
   "name": "pele-layout-circular",
   "version": "0.2.0",
-  "description": "Circular layout for Pele flowcharts: nodes on a circle, edges as arcs",
+  "description": "A circular layout for Pele, the mermaid renderer Obsidian uses. Nodes sit on a circle, and arrows follow it.",
   "type": "module",
   "module": "dist/pele-layout-circular.js",
   "types": "dist/index.d.ts",
@@ -22,15 +22,20 @@
     "build": "vite build && dts-bundle-generator --project tsconfig.build.json --external-inlines layout-circular --no-check --no-banner -o dist/index.d.ts src/index.ts",
     "prepare": "npm run build",
     "test": "vitest run",
-    "lint": "eslint . && tsc -p tsconfig.json && tsc -p demo/tsconfig.json"
+    "lint": "eslint . && tsc -p tsconfig.json && tsc -p demo/tsconfig.json",
+    "docs:images": "npm run build && node scripts/render-docs.ts"
   },
   "keywords": [
     "pele",
     "mermaid",
+    "obsidian",
+    "flowchart",
+    "diagram",
     "layout",
     "circular",
+    "circle",
     "cycle",
-    "diagram"
+    "ring"
   ],
   "author": "Andrew Broz",
   "repository": {

@@ -9,6 +9,11 @@ export interface Case {
   frontmatter?: string;
   /** The flowchart body, with no frontmatter. */
   body: string;
+  /** The base name of this case's picture in docs/media, if it has one. */
+  doc?: string;
+  /** The base name of a picture of the same text drawn by Pele's own
+   *  layout, if the docs show one. */
+  docPele?: string;
 }
 
 const waterCycle = `flowchart LR
@@ -20,8 +25,13 @@ const waterCycle = `flowchart LR
 `;
 
 export const cases: Case[] = [
-  { title: 'a pure cycle: the water cycle', body: waterCycle },
-  { title: 'the same cycle counter-clockwise (circular-ccw)', layout: 'circular-ccw', body: waterCycle },
+  { title: 'a pure cycle: the water cycle', doc: 'water-cycle', docPele: 'water-cycle-pele', body: waterCycle },
+  {
+    title: 'the same cycle counter-clockwise (circular-ccw)',
+    doc: 'water-cycle-ccw',
+    layout: 'circular-ccw',
+    body: waterCycle,
+  },
   {
     title: 'straight edges (curve: linear): a triangle, an opposite pair, a label',
     curve: 'linear',
@@ -32,6 +42,7 @@ export const cases: Case[] = [
   },
   {
     title: 'a chord shortcut and edge labels',
+    doc: 'daily-arcs',
     wide: true,
     body: `flowchart LR
   W[Wake] -->|coffee| Wk[Work]
@@ -43,7 +54,55 @@ export const cases: Case[] = [
 `,
   },
   {
+    title: 'the chord shortcut with straight edges (curve: linear)',
+    doc: 'daily-straight',
+    wide: true,
+    curve: 'linear',
+    body: `flowchart LR
+  W[Wake] -->|coffee| Wk[Work]
+  Wk -->|lunch| M[Meetings]
+  M -->|escape| F[Focus]
+  F -->|dusk| Hm[Home]
+  Hm -->|sleep| W
+  Wk -.->|skip the day| Hm
+`,
+  },
+  {
+    title: 'two opposite straight edges: parallel lines, labels aside',
+    doc: 'parallel-lines',
+    curve: 'linear',
+    body: `flowchart LR
+  A[Plan] -->|then| B[Build]
+  C[Ship] --> A
+  B -->|ready| C
+  C -->|fix| B
+`,
+  },
+  {
+    title: 'the parts: a ring, a chord, a branch and a satellite',
+    doc: 'anatomy',
+    wide: true,
+    body: `flowchart LR
+  P[Plan] --> B[Build] --> T[Test] --> S[Ship] --> L[Learn] --> P
+  B -.->|skip tests| S
+  I[Idea] --> P
+  T --> D[Debug] --> F[Fix] --> R[Retest] --> D
+`,
+  },
+  {
+    title: 'branches hang off the ring',
+    doc: 'branches',
+    wide: true,
+    body: `flowchart LR
+  P[Plan] --> B[Build] --> S[Ship] --> L[Learn] --> P
+  I[Idea] --> P
+  S --> N[Release notes]
+  B --> G[Build log]
+`,
+  },
+  {
     title: 'mixed shapes and sizes',
+    doc: 'mixed-shapes',
     wide: true,
     body: `flowchart LR
   A([A very long stadium node label]) --> B{Decide}
@@ -62,6 +121,7 @@ export const cases: Case[] = [
   },
   {
     title: 'self-loop and an opposite edge',
+    doc: 'self-loop',
     body: `flowchart LR
   A[Draft] --> B[Review]
   B --> A
@@ -72,6 +132,7 @@ export const cases: Case[] = [
   },
   {
     title: 'a Krebs-style cycle with inputs and outputs',
+    doc: 'krebs',
     wide: true,
     body: `flowchart LR
   A[Citrate] --> B[Isocitrate] --> C[Ketoglutarate] --> D[Succinyl-CoA]
@@ -84,6 +145,7 @@ export const cases: Case[] = [
   },
   {
     title: 'hub and spoke',
+    doc: 'hub',
     wide: true,
     body: `flowchart LR
   Hub[Registry] --> A[Alpha]
@@ -96,6 +158,7 @@ export const cases: Case[] = [
   },
   {
     title: 'a wheel: the ring keeps its shape, the axle takes the middle',
+    doc: 'wheel',
     wide: true,
     body: `flowchart LR
   A[Plan] --> B[Build] --> C[Test] --> D[Ship] --> E[Watch] --> F[Learn] --> A
@@ -109,6 +172,7 @@ export const cases: Case[] = [
   },
   {
     title: 'Captain Planet: a wheel missing a rim arc, meshing a gear',
+    doc: 'captain-planet',
     wide: true,
     body: `flowchart TB
   P[Captain
@@ -129,6 +193,7 @@ export const cases: Case[] = [
   },
   {
     title: 'a satellite: the debug loop hangs off Build',
+    doc: 'satellite',
     wide: true,
     body: `flowchart LR
   P[Plan] --> B[Build] --> S[Ship] --> L[Learn] --> P
@@ -138,6 +203,7 @@ export const cases: Case[] = [
   },
   {
     title: 'a figure-eight: two cycles sharing Sleep',
+    doc: 'figure-eight',
     wide: true,
     body: `flowchart LR
   W[Wake] --> K[Work] --> N[Dine] --> S[Sleep] --> W
@@ -146,6 +212,7 @@ export const cases: Case[] = [
   },
   {
     title: 'three gears: each loop spins against the one it meshes with',
+    doc: 'three-gears',
     wide: true,
     body: `flowchart LR
   A[Mine] --> B[Smelt] --> C[Cast] --> D[Sell] --> E[Invest] --> A
@@ -157,6 +224,7 @@ export const cases: Case[] = [
   },
   {
     title: 'a spur and a satellite on one node',
+    doc: 'spur-and-satellite',
     wide: true,
     body: `flowchart LR
   P[Plan] --> B[Build] --> S[Ship] --> L[Learn] --> P
@@ -183,12 +251,78 @@ export const cases: Case[] = [
   },
   {
     title: 'a subgraph around a pendant cycle',
+    doc: 'group-satellite',
     wide: true,
     body: `flowchart LR
   P[Plan] --> B[Build] --> S[Ship] --> L[Learn] --> P
   B --> D[Debug]
   subgraph The debug loop
     D --> F[Fix] --> T[Test] --> D
+  end
+`,
+  },
+  {
+    title: 'a small subgraph is a box',
+    doc: 'lifecycle-box',
+    wide: true,
+    body: `flowchart LR
+  I[Idea] --> S[Spec] --> D[Design]
+  subgraph Make
+    B[Build]
+    T[Test]
+  end
+  D --> B --> T --> P[Deploy] --> M[Monitor] --> R[Retire] --> I
+`,
+  },
+  {
+    title: 'a subgraph spanning most of the ring is a band',
+    doc: 'lifecycle-band',
+    wide: true,
+    body: `flowchart LR
+  I[Idea]
+  subgraph Funded
+    S[Spec]
+    D[Design]
+    B[Build]
+    T[Test]
+    P[Deploy]
+    M[Monitor]
+  end
+  I --> S --> D --> B --> T --> P --> M --> R[Retire] --> I
+`,
+  },
+  {
+    title: 'a subgraph nested in a band is a band too, its title between the two',
+    doc: 'nested-band',
+    wide: true,
+    body: `flowchart LR
+  P[Plan]
+  subgraph Engineering
+    D[Design]
+    subgraph CI
+      C[Code]
+      T[Test]
+    end
+    R[Release]
+  end
+  P --> D --> C --> T --> R --> V[Review] --> P
+  style CI fill:#ffd
+`,
+  },
+  {
+    title: 'spokes cross the top of a box, so its title moves to the bottom',
+    doc: 'title-bottom',
+    wide: true,
+    body: `flowchart LR
+  Hub[Registry] --> A[Alpha]
+  Hub --> B[Bravo]
+  Hub --> C[Charlie]
+  Hub --> D[Delta]
+  Hub --> E[Echo]
+  Hub --> F[Foxtrot]
+  subgraph Archive
+    C
+    D
   end
 `,
   },
