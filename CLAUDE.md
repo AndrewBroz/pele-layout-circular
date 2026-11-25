@@ -21,6 +21,14 @@ The circular layout for Pele. Read `README.md`, `docs/PLAN.md` and
   Pele changes.
 - Tests render through real Pele.
 
+## Docs
+
+README and docs follow `../layout-circular/docs/DOCS-STYLE.md`.
+Redraw README pictures with `npm run docs:images`
+(`scripts/render-docs.ts`). It also draws the Pele pictures for
+layout-circular and obsidian-mermaid-circular, with `--out` and
+`--only`.
+
 ## Gates
 
 `npm test`, `npm run lint` and `npm run build`, all green before
