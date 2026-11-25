@@ -118,8 +118,10 @@ No branch of A touches `mermaid-layout-circular`.
 
 ### B. How is the placement math shared?
 
-Needed before phase 1 gets far. Ordered from least to most change to
-`mermaid-layout-circular`:
+**Decided 2026-11-25: Extract, as a self-contained core built to be
+copied** (see `DECISIONS.md`). It's compiled into each layout's bundle,
+never shipped as a runtime dependency, because both possible upstreams
+take in outside layout code as source. The branches as they stood:
 
 | Branch | Consequence | Lands in |
 | --- | --- | --- |
