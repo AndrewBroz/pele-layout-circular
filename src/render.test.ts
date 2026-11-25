@@ -130,6 +130,27 @@ describe('withCircularLayout', () => {
     expect(withTitle.width).toBeGreaterThanOrEqual(alone.width);
   });
 
+  it('draws a chord straight while the rim keeps its arcs', () => {
+    const { svg } = render(
+      circular(
+        'flowchart LR\n  W[Wake] --> K[Work] --> M[Meetings] --> F[Focus] --> H[Home] --> W\n  K -.-> H'
+      )
+    );
+    // Largest distance of any vertex of the drawn path from the line
+    // through its ends.
+    const bend = (id: string) => {
+      const el = childGroups(findGroup(svg, 'pele-edges')!.inner).find((g) => attr(g.open, 'data-id') === id)!;
+      const d = attr(/<path\b(?![^>]*pele-marker)[^>]*>/.exec(el.inner)![0], 'd')!;
+      const pts = [...d.matchAll(/([-\d.]+),([-\d.]+)/g)].map((m) => ({ x: Number(m[1]), y: Number(m[2]) }));
+      const [a, b] = [pts[0]!, pts.at(-1)!];
+      const len = Math.hypot(b.x - a.x, b.y - a.y);
+      return Math.max(...pts.map((p) => Math.abs((p.x - a.x) * (b.y - a.y) - (p.y - a.y) * (b.x - a.x)) / len));
+    };
+    // The path's numbers are rounded for the SVG, so allow a little.
+    expect(bend('L_K_H_0'), 'the chord').toBeLessThan(0.05);
+    expect(bend('L_W_K_0'), 'a rim edge').toBeGreaterThan(1);
+  });
+
   it('takes its spacing from the flowchart config', () => {
     const spread = (spacing: number) => {
       const n = nodesOf(

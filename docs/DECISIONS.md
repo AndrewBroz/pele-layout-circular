@@ -137,3 +137,13 @@ Append-only, dated. The plan these belong to is `docs/PLAN.md`.
   8: Pele's head is 8px long and 0.42 of that wide on each side of its
   line, so 8px leaves about 4px of daylight to the sibling line.
   Options set in code still override it.
+- **2026-11-25 — Chords are straight.** layout-circular now draws every
+  chord, an edge between ring nodes that aren't neighbors, as a
+  straight line in both edge modes, and drops its `bow` and `swerve`
+  options. The decision is recorded in layout-circular's DECISIONS.
+  Nothing in this package's drawing changes: it draws the core's
+  points as a polyline, so a straight chord comes out straight. A test
+  through real Pele checks it. The README's options example now uses
+  `parallelGap`. Of the demo cases, only "a chord shortcut and edge
+  labels" changes. This needs layout-circular 0.2.0, so the
+  devDependency moves to `^0.2.0` when that is published.
