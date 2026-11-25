@@ -71,6 +71,14 @@ If it lands, this package becomes a plain layout registration.
   ring's middle. The demo gallery shows it in the "subgraphs on the
   cycle" case, the water cycle with Atmosphere and Land.
 
+## Demo
+
+`npm run dev` serves a gallery of cases. Each renders twice: through
+`withCircularLayout`, and in Pele's own layout beside it. The button
+at the top switches the `--pele-*` colors between light and dark. The
+page takes `?theme=dark` too. `demo/` is not part of the library build
+or the published package.
+
 ## Development
 
 `layout-circular` is a devDependency that the build compiles in. It

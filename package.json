@@ -18,10 +18,11 @@
     "node": ">=22"
   },
   "scripts": {
+    "dev": "vite demo",
     "build": "vite build && dts-bundle-generator --project tsconfig.build.json --external-inlines layout-circular --no-check --no-banner -o dist/index.d.ts src/index.ts",
     "prepare": "npm run build",
     "test": "vitest run",
-    "lint": "eslint . && tsc -p tsconfig.json"
+    "lint": "eslint . && tsc -p tsconfig.json && tsc -p demo/tsconfig.json"
   },
   "keywords": [
     "pele",

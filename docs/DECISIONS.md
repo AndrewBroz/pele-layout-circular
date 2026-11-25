@@ -86,3 +86,12 @@ Append-only, dated. The plan these belong to is `docs/PLAN.md`.
   `rgba()`. Still open: an edge into an expanded subgraph is dropped,
   and an edge's color is the one Pele chose in its own layout, even
   where the circle moves the edge into or out of a filled group.
+- **2026-11-25 — A demo gallery, kept out of the package.** `npm run
+  dev` serves `demo/`. It renders each case twice, through
+  `withCircularLayout` and in Pele's own layout beside it, and has a
+  light and dark toggle for the `--pele-*` colors. A person uses it for
+  repeatable visual checks of both layouts and both themes. `demo/` is
+  outside the library build (its entry is `src/`) and outside the
+  published `files`. `npm run lint` type-checks it with its own
+  tsconfig, which adds the DOM types so `src/` itself can't use them
+  by accident.
