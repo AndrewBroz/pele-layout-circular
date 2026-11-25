@@ -120,3 +120,13 @@ Append-only, dated. The plan these belong to is `docs/PLAN.md`.
   Pele, an edge over a fill gets a casing instead of an ink where its
   own style sets a stroke, or where the fill's ink is unknown. Only hex
   and named colors are read, as before.
+- **2026-11-25 — Chords are straight.** layout-circular now draws every
+  chord, an edge between ring nodes that aren't neighbors, as a
+  straight line in both edge modes, and drops its `bow` and `swerve`
+  options. The decision is recorded in layout-circular's DECISIONS.
+  Nothing in this package's drawing changes: it draws the core's
+  points as a polyline, so a straight chord comes out straight. A test
+  through real Pele checks it. The README's options example now uses
+  `parallelGap`. Of the demo cases, only "a chord shortcut and edge
+  labels" changes. This needs layout-circular 0.2.0, so the
+  devDependency moves to `^0.2.0` when that is published.

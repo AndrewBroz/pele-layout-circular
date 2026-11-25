@@ -3,7 +3,8 @@
 A circular layout for [Pele](https://pele.run) flowcharts. Write an
 ordinary flowchart, set `layout: circular`, and the nodes are placed
 evenly around a circle, with edges drawn as arcs of that same circle.
-Chords bow toward the center. A clear hub moves to the center, side
+A chord, an edge between ring nodes that aren't neighbors, is a
+straight line across the ring. A clear hub moves to the center, side
 branches hang off radially, and a cycle hanging off the ring becomes its
 own smaller circle.
 
@@ -41,7 +42,7 @@ register(withCircularLayout(flowchart));
 ```
 
 The second argument takes the layout's options, such as
-`{ spacing: 60, bow: 0.4 }`. Their defaults are `CircularLayoutOptions`
+`{ spacing: 60, parallelGap: 8 }`. Their defaults are `CircularLayoutOptions`
 in layout-circular. When no option sets it, `spacing` comes from the
 diagram's `flowchart.nodeSpacing`. A diagram that says
 `layout: circular-ccw` runs counter-clockwise whatever the options say.
