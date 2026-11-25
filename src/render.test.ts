@@ -27,6 +27,80 @@ const nodesOf = (svg: string): Map<string, Node> => {
   return out;
 };
 
+/** Each group's shape, as drawn: a box from its rect, or a band from
+ *  its path, `M` outer start, outer arc, `L` inner end, inner arc. */
+type Shape =
+  | { kind: 'box'; x: number; y: number; w: number; h: number }
+  | { kind: 'band'; cx: number; cy: number; rIn: number; rOut: number; start: number; sweep: number };
+const clustersOf = (svg: string) => {
+  const out = new Map<string, Shape>();
+  for (const el of childGroups(findGroup(svg, 'pele-clusters')!.inner)) {
+    const id = attr(el.open, 'data-id')!;
+    const rect = /<rect\b[^>]*>/.exec(el.inner)?.[0];
+    if (rect) {
+      const [x, y, w, h] = ['x', 'y', 'width', 'height'].map((k) => Number(attr(rect, k)));
+      out.set(id, { kind: 'box', x: x!, y: y!, w: w!, h: h! });
+      continue;
+    }
+    const d = attr(/<path\b[^>]*>/.exec(el.inner)![0], 'd')!;
+    const n = [...d.matchAll(/-?[\d.]+/g)].map((m) => Number(m[0]));
+    // M sx,sy A r,r 0 large 1 ex,ey L ix,iy A q,q 0 large 0 jx,jy Z
+    const [sx, sy, rOut, , , large, , ex, ey, , , rIn] = n as number[];
+    // The center: on the bisector of the outer chord, rOut from its ends.
+    const mx = (sx! + ex!) / 2;
+    const my = (sy! + ey!) / 2;
+    const half = Math.hypot(ex! - sx!, ey! - sy!) / 2;
+    const along = Math.sqrt(Math.max(0, rOut! * rOut! - half * half));
+    // Clockwise from start to end; a large arc puts the center on the
+    // other side of the chord.
+    const nx = -(ey! - sy!) / (2 * half);
+    const ny = (ex! - sx!) / (2 * half);
+    const side = large ? -1 : 1;
+    const cx = mx + nx * along * side;
+    const cy = my + ny * along * side;
+    const start = Math.atan2(sy! - cy, sx! - cx);
+    let sweep = Math.atan2(ey! - cy, ex! - cx) - start;
+    while (sweep <= 0) sweep += 2 * Math.PI;
+    out.set(id, { kind: 'band', cx, cy, rIn: rIn!, rOut: rOut!, start, sweep });
+  }
+  return out;
+};
+
+/** Whether a shape covers any point of a rect, sampled every 2px. */
+const covers = (s: Shape, r: { minX: number; minY: number; maxX: number; maxY: number }) => {
+  if (s.kind === 'box') return s.x < r.maxX && s.x + s.w > r.minX && s.y < r.maxY && s.y + s.h > r.minY;
+  for (let x = r.minX; x <= r.maxX; x += 2) {
+    for (let y = r.minY; y <= r.maxY; y += 2) {
+      const rho = Math.hypot(x - s.cx, y - s.cy);
+      const into = (((Math.atan2(y - s.cy, x - s.cx) - s.start) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+      if (rho >= s.rIn && rho <= s.rOut && into <= s.sweep) return true;
+    }
+  }
+  return false;
+};
+
+/** No shape covers a node outside its group, and no two sibling shapes meet. */
+const expectClear = (svg: string, members: Record<string, string[]>) => {
+  const nodes = nodesOf(svg);
+  const shapes = clustersOf(svg);
+  expect([...shapes.keys()].sort()).toEqual(Object.keys(members).sort());
+  for (const [g, s] of shapes) {
+    for (const [id, n] of nodes) {
+      if (members[g]!.includes(id)) continue;
+      const b = markupBox(n.inner);
+      const rect = { minX: n.x + b.minX, minY: n.y + b.minY, maxX: n.x + b.maxX, maxY: n.y + b.maxY };
+      expect(covers(s, rect), `${g} covers ${id}`).toBe(false);
+    }
+    for (const [h, q] of shapes) {
+      // A shape wraps the shapes nested in it, so only siblings must part.
+      const nested = (a: string, b: string) => members[a]!.every((id) => members[b]!.includes(id));
+      if (h <= g || nested(g, h) || nested(h, g) || s.kind !== 'box' || q.kind !== 'box') continue;
+      const overlaps = s.x < q.x + q.w && q.x < s.x + s.w && s.y < q.y + q.h && q.y < s.y + s.h;
+      expect(overlaps, `${g} meets ${h}`).toBe(false);
+    }
+  }
+};
+
 describe('withCircularLayout', () => {
   it('leaves a flowchart without the layout exactly as Pele draws it', () => {
     const source = RING;
@@ -120,6 +194,195 @@ describe('withCircularLayout', () => {
       expect(n.x + b.maxX).toBeLessThanOrEqual(x! + w!);
       expect(n.y + b.minY).toBeGreaterThanOrEqual(y!);
       expect(n.y + b.maxY).toBeLessThanOrEqual(y! + h!);
+    }
+  });
+
+  it("keeps the water cycle's two subgraph boxes apart", () => {
+    const { svg } = render(
+      circular(
+        'flowchart LR\n  E[Evaporation] --> C[Condensation]\n  subgraph Atmosphere\n    C --> P[Precipitation]\n  end\n' +
+          '  P --> R[Runoff]\n  subgraph Land\n    R --> O[Collection]\n  end\n  O --> E'
+      )
+    );
+    expectClear(svg, { Atmosphere: ['C', 'P'], Land: ['R', 'O'] });
+  });
+
+  it("keeps a ring neighbor off a subgraph's title", () => {
+    const { svg } = render(
+      circular('flowchart LR\n  A --> B\n  subgraph G [Group]\n    B --> C\n  end\n  C --> D --> A')
+    );
+    expectClear(svg, { G: ['B', 'C'] });
+  });
+
+  it('nests a subgraph box inside its parent', () => {
+    const { svg } = render(
+      circular(
+        'flowchart LR\n  A --> B\n  subgraph Outer\n    B --> C\n    subgraph Inner\n      C --> D\n    end\n  end\n  D --> E --> F --> A'
+      )
+    );
+    expectClear(svg, { Outer: ['B', 'C', 'D'], Inner: ['C', 'D'] });
+    const boxes = clustersOf(svg);
+    const outer = boxes.get('Outer')!;
+    const inner = boxes.get('Inner')!;
+    if (outer.kind !== 'box' || inner.kind !== 'box') throw new Error('expected boxes');
+    expect(inner.x).toBeGreaterThanOrEqual(outer.x);
+    expect(inner.y).toBeGreaterThanOrEqual(outer.y);
+    expect(inner.x + inner.w).toBeLessThanOrEqual(outer.x + outer.w);
+    expect(inner.y + inner.h).toBeLessThanOrEqual(outer.y + outer.h);
+  });
+
+  it('hugs a box with the room Pele draws, not the slack of its layout', () => {
+    const { svg } = render(
+      circular(
+        'flowchart LR\n  E[Evaporation] --> C[Condensation]\n  subgraph Atmosphere\n    C --> P[Precipitation]\n  end\n' +
+          '  P --> R[Runoff]\n  subgraph Land\n    R --> O[Collection]\n  end\n  O --> E'
+      )
+    );
+    const nodes = nodesOf(svg);
+    const box = clustersOf(svg).get('Land')!;
+    if (box.kind !== 'box') throw new Error('expected a box');
+    const sides = ['R', 'O'].map((id) => {
+      const n = nodes.get(id)!;
+      const b = markupBox(n.inner);
+      return { minX: n.x + b.minX, maxX: n.x + b.maxX, maxY: n.y + b.maxY };
+    });
+    // Pele's tight group padding, 12px, at the left, the right and the
+    // bottom, where Pele's layout left 40.
+    expect(Math.min(...sides.map((r) => r.minX)) - box.x).toBeCloseTo(12, 0);
+    expect(box.x + box.w - Math.max(...sides.map((r) => r.maxX))).toBeCloseTo(12, 0);
+    expect(box.y + box.h - Math.max(...sides.map((r) => r.maxY))).toBeCloseTo(12, 0);
+  });
+
+  const FUNDED =
+    'flowchart LR\n  I[Idea]\n  subgraph Funded\n    S[Spec]\n    D[Design]\n    B[Build]\n    T[Test]\n    P[Deploy]\n    M[Monitor]\n  end\n' +
+    '  I --> S --> D --> B --> T --> P --> M --> R[Retire] --> I';
+
+  it("draws a group spanning most of the ring as a band, a path keeping the group's data-id and fill", () => {
+    const { svg } = render(circular(FUNDED + '\n  style Funded fill:#ffd'));
+    const el = childGroups(findGroup(svg, 'pele-clusters')!.inner).find((g) => attr(g.open, 'data-id') === 'Funded')!;
+    expect(el.open).toContain('class="pele-cluster"');
+    expect(el.inner).not.toContain('<rect');
+    const path = /<path\b[^>]*>/.exec(el.inner)![0];
+    expect(attr(path, 'style')).toContain('fill:#ffd');
+    expect(attr(path, 'stroke')).toBe('var(--_b)');
+    expect(path).not.toMatch(/\s(x|y|width|height)=/);
+    expectClear(svg, { Funded: ['S', 'D', 'B', 'T', 'P', 'M'] });
+  });
+
+  it("seats a band's title outside the band, near its middle", () => {
+    const { svg } = render(circular(FUNDED));
+    const band = clustersOf(svg).get('Funded')!;
+    if (band.kind !== 'band') throw new Error('expected a band');
+    const el = childGroups(findGroup(svg, 'pele-clusters')!.inner)[0]!;
+    const text = /<text\b[^>]*>/.exec(el.inner)![0];
+    const move = /translate\(([-\d.]+),([-\d.]+)\)/.exec(el.inner)!;
+    const x = Number(attr(text, 'x')) + Number(move[1]);
+    const y = Number(attr(text, 'y')) + Number(move[2]);
+    const rho = Math.hypot(x - band.cx, y - band.cy);
+    expect(rho).toBeGreaterThan(band.rOut);
+    expect(rho).toBeLessThan(band.rOut + 60);
+    const mid = band.start + band.sweep / 2;
+    const off = Math.atan2(y - band.cy, x - band.cx) - mid;
+    expect(Math.abs(Math.atan2(Math.sin(off), Math.cos(off)))).toBeLessThan(0.3);
+  });
+
+  it("inks a band's title for the page behind it, not for the band's fill", () => {
+    const { svg } = render(circular(FUNDED + '\n  style Funded fill:#003'));
+    // Pele inks the title light for the dark fill it sits on in its own box.
+    expect(render(FUNDED + '\n  style Funded fill:#003').svg).toContain('class="pele-cluster-label" fill="var(--pele-fg-on-dark,#fff)"');
+    const el = childGroups(findGroup(svg, 'pele-clusters')!.inner)[0]!;
+    expect(attr(/<text\b[^>]*>/.exec(el.inner)![0], 'fill')).toBe('var(--_m)');
+  });
+
+  it('nests a band inside a band', () => {
+    const { svg } = render(
+      circular(
+        'flowchart LR\n  P[Plan]\n  subgraph Engineering\n    D[Design]\n    subgraph CI\n      C[Code]\n      T[Test]\n    end\n    R[Release]\n  end\n' +
+          '  P --> D --> C --> T --> R --> V[Review] --> P'
+      )
+    );
+    const shapes = clustersOf(svg);
+    expect([...shapes.values()].map((s) => s.kind)).toEqual(['band', 'band']);
+    const outer = shapes.get('Engineering')!;
+    const inner = shapes.get('CI')!;
+    if (outer.kind !== 'band' || inner.kind !== 'band') throw new Error('expected bands');
+    expect(inner.rIn).toBeGreaterThan(outer.rIn);
+    expect(inner.rOut).toBeLessThan(outer.rOut);
+    expectClear(svg, { Engineering: ['D', 'C', 'T', 'R'], CI: ['C', 'T'] });
+  });
+
+  /** Where a box's title text landed, and the members' vertical extent. */
+  const titleAndMembers = (svg: string, g: string, members: string[]) => {
+    const el = childGroups(findGroup(svg, 'pele-clusters')!.inner).find((q) => attr(q.open, 'data-id') === g)!;
+    const text = /<text\b[^>]*>/.exec(el.inner)![0];
+    const move = /<g transform="translate\(([-\d.]+),([-\d.]+)\)">/.exec(el.inner);
+    const y = Number(attr(text, 'y')) + (move ? Number(move[2]) : 0);
+    const nodes = nodesOf(svg);
+    const ys = members.flatMap((id) => {
+      const n = nodes.get(id)!;
+      const b = markupBox(n.inner);
+      return [n.y + b.minY, n.y + b.maxY];
+    });
+    return { y, top: Math.min(...ys), bottom: Math.max(...ys) };
+  };
+
+  it("puts a box's title at the bottom when spokes cross its top", () => {
+    const { svg } = render(
+      circular(
+        'flowchart LR\n  A[Plan]\n  subgraph Delivery\n    C[Test]\n    D[Ship]\n  end\n  A --> B[Build] --> C --> D --> E[Watch] --> F[Learn] --> A\n' +
+          '  A --> Hub[Vision]\n  B --> Hub\n  C --> Hub\n  D --> Hub\n  E --> Hub\n  F --> Hub'
+      )
+    );
+    const t = titleAndMembers(svg, 'Delivery', ['C', 'D']);
+    expect(t.y).toBeGreaterThan(t.bottom);
+    expectClear(svg, { Delivery: ['C', 'D'] });
+  });
+
+  it('keeps the water cycle\'s titles on top', () => {
+    const { svg } = render(
+      circular(
+        'flowchart LR\n  E[Evaporation] --> C[Condensation]\n  subgraph Atmosphere\n    C --> P[Precipitation]\n  end\n' +
+          '  P --> R[Runoff]\n  subgraph Land\n    R --> O[Collection]\n  end\n  O --> E'
+      )
+    );
+    for (const [g, m] of [['Atmosphere', ['C', 'P']], ['Land', ['R', 'O']]] as const) {
+      const t = titleAndMembers(svg, g, [...m]);
+      expect(t.y, g).toBeLessThan(t.top);
+    }
+  });
+
+  it("keeps the water cycle's titles clear of every edge", () => {
+    const body =
+      'flowchart LR\n  E[Evaporation] --> C[Condensation]\n  subgraph Atmosphere\n    C --> P[Precipitation]\n  end\n' +
+      '  P --> R[Runoff]\n  subgraph Land\n    R --> O[Collection]\n  end\n  O --> E';
+    const plain = render(body).svg;
+    const { svg } = render(circular(body));
+    const lines = childGroups(findGroup(svg, 'pele-edges')!.inner).map((el) =>
+      [...attr(/<path\b[^>]*>/.exec(el.inner)![0], 'd')!.matchAll(/(-?[\d.]+),(-?[\d.]+)/g)].map((m) => ({ x: Number(m[1]), y: Number(m[2]) }))
+    );
+    for (const g of ['Atmosphere', 'Land']) {
+      // The title's width, read back from Pele's own drawing: its left
+      // edge sits 14px inside the box (20px padding less 6).
+      const own = childGroups(findGroup(plain, 'pele-clusters')!.inner).find((q) => attr(q.open, 'data-id') === g)!;
+      const half = Number(attr(/<text\b[^>]*>/.exec(own.inner)![0], 'x')) - Number(attr(/<rect\b[^>]*>/.exec(own.inner)![0], 'x')) - 14;
+      const el = childGroups(findGroup(svg, 'pele-clusters')!.inner).find((q) => attr(q.open, 'data-id') === g)!;
+      const text = /<text\b[^>]*>/.exec(el.inner)![0];
+      const move = /<g transform="translate\(([-\d.]+),([-\d.]+)\)">/.exec(el.inner)!;
+      const x = Number(attr(text, 'x')) + Number(move[1]);
+      const baseline = Number(attr(text, 'y')) + Number(move[2]);
+      // A 16px line: about 12px above the baseline, 4px below.
+      const box = { minX: x - half, maxX: x + half, minY: baseline - 12, maxY: baseline + 4 };
+      for (const line of lines) {
+        for (let k = 0; k + 1 < line.length; k++) {
+          const [a, b] = [line[k]!, line[k + 1]!];
+          for (let i = 0; i <= 20; i++) {
+            const px = a.x + ((b.x - a.x) * i) / 20;
+            const py = a.y + ((b.y - a.y) * i) / 20;
+            const inside = px > box.minX && px < box.maxX && py > box.minY && py < box.maxY;
+            expect(inside, `${g} crossed at ${px.toFixed(1)},${py.toFixed(1)}`).toBe(false);
+          }
+        }
+      }
     }
   });
 
@@ -273,20 +536,23 @@ describe('edge ink', () => {
   const cased = (svg: string, el: { inner: string }) =>
     (findGroup(svg, 'pele-casings')?.inner ?? '').includes(`<path d="${attr(/<path\b[^>]*>/.exec(el.inner)![0], 'd')}"/>`);
 
-  it("gives an edge moved over a fill Pele's ink for that fill, on its group and markers", () => {
-    // On the circle C sits between B and D, inside S's box, so B --> C
-    // runs over the fill. In Pele's layout it crosses the border.
+  it("gives an edge over a fill Pele's ink for that fill, on its group and markers", () => {
+    // The circle seats S's members A, B and D side by side, and keeps C
+    // out of S's box. A --> B runs over the fill.
     const body = `flowchart LR\n  A --> B --> C --> D --> E --> F --> A\n  subgraph S\n    A\n    B\n    D\n  end\n  ${DARK}`;
     const plain = render(body).svg;
-    expect(attr(edge(plain, 'L_B_C_0').open, 'stroke')).toBeUndefined();
     // The ink Pele gives an edge over the same fill in its own layout.
     const own = attr(edge(plain, 'L_A_B_0').open, 'stroke')!;
     expect(own).toBe('var(--pele-fg-on-dark,#fff)');
     const { svg } = render(circular(body));
-    const moved = edge(svg, 'L_B_C_0');
-    expect(attr(moved.open, 'stroke')).toBe(own);
-    expect(markerFills(moved)).toEqual([own]);
-    expect(cased(svg, moved)).toBe(false);
+    const over = edge(svg, 'L_A_B_0');
+    expect(attr(over.open, 'stroke')).toBe(own);
+    expect(markerFills(over)).toEqual([own]);
+    expect(cased(svg, over)).toBe(false);
+    // B --> C leaves the box now that C sits outside it: no stale ink.
+    const across = edge(svg, 'L_B_C_0');
+    expect(attr(across.open, 'stroke')).toBeUndefined();
+    expect(cased(svg, across)).toBe(true);
   });
 
   it('takes the ink of the innermost fill under an edge', () => {
@@ -323,6 +589,18 @@ describe('edge ink', () => {
     expect(attr(own.open, 'stroke')).toBeUndefined();
     expect(markerFills(own)).toEqual(['#f00']);
     expect(cased(svg, own)).toBe(true);
+  });
+
+  it("inks an edge over a band's fill, and cases one across its border", () => {
+    const body =
+      'flowchart LR\n  I[Idea]\n  subgraph S\n    A[Spec]\n    B[Design]\n    C[Build]\n    D[Test]\n    E[Deploy]\n    F[Monitor]\n  end\n' +
+      `  I --> A --> B --> C --> D --> E --> F --> R[Retire] --> I\n  ${DARK}`;
+    const { svg } = render(circular(body));
+    expect(clustersOf(svg).get('S')!.kind).toBe('band');
+    const inside = edge(svg, 'L_B_C_0');
+    expect(attr(inside.open, 'stroke')).toBe('var(--pele-fg-on-dark,#fff)');
+    expect(cased(svg, inside)).toBe(false);
+    expect(cased(svg, edge(svg, 'L_I_A_0'))).toBe(true);
   });
 
   describe('the ink decision', () => {

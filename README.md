@@ -55,6 +55,19 @@ edge label and group box, moves each to its place on the circle, and
 redraws the edges along it. Pele's shapes, theming and CSS hooks carry
 over unchanged.
 
+Groups keep the circle whole. layout-circular turns the ring, or
+grows it evenly, until each group's shape clears the nodes outside it
+and the shapes beside it. A group is a box that hugs its members, with
+Pele's tight group padding at the sides and Pele's own title room on
+top. A group whose members span half the ring or more is a band that
+follows the ring: Pele's group rect becomes a path, keeping its class,
+`data-id`, fill and style. Its title sits just outside the band, and a
+nested band's title sits between it and its parent. A box's title
+sits on top, or at the bottom where the core finds spokes or chords
+crossing the top, and takes the first of Pele's three spots along that
+edge that no edge runs through. Edges over a band's fill take Pele's ink for that fill, and
+edges across its border get a casing, as with a box.
+
 A layout hook for Pele is proposed in
 [obsidianmd/pele#163](https://github.com/obsidianmd/pele/pull/163).
 If it lands, this package becomes a plain layout registration.
@@ -63,9 +76,9 @@ If it lands, this package becomes a plain layout registration.
 
 - An edge that points at a subgraph itself, rather than a node inside
   it, is dropped. Edges into a collapsed subgraph are drawn.
-- Two sibling subgraphs on the cycle can touch or overlap near the
-  ring's middle. The demo gallery shows it in the "subgraphs on the
-  cycle" case, the water cycle with Atmosphere and Land.
+- A box title crossed at every one of Pele's three spots along its
+  edge stays at the left, under the edge. Pele itself redraws such a
+  title above the edges, on a halo.
 
 ## Demo
 

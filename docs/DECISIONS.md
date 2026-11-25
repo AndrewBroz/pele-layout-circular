@@ -120,3 +120,36 @@ Append-only, dated. The plan these belong to is `docs/PLAN.md`.
   Pele, an edge over a fill gets a casing instead of an ink where its
   own style sets a stroke, or where the fill's ink is unknown. Only hex
   and named colors are read, as before.
+- **2026-11-25 — Group shapes come from the core.** The wrapper drew
+  each group box as the union of where its members landed, keeping the
+  room Pele's layout left on each side. Nothing kept that box off
+  other nodes or boxes. In the water cycle, Land covered Evaporation
+  and the two boxes all but touched. In a ring of four with a group of
+  two, a ring neighbor sat on the title. layout-circular now places
+  group shapes, strategy D2 from the prototype gallery (its DECISIONS
+  entry "Group shapes are placed here, the book designer's way"). The
+  wrapper reads each group's padding and title from Pele's drawing and
+  passes them with the group's parent. The sides take Pele's tight
+  group padding, 12px, or less where the drawing shows less. Pele's
+  layout often leaves 40px, and the prototype the owner chose from hugs
+  at 12. The top is Pele's title room, the label's height plus 8px
+  above and below it, read from the title's baselines. A one-line
+  title's width reads back from where Pele placed it, 6px inside the
+  side padding Pele drew, 20px, or 12 when it drew tight. A box is
+  drawn at the core's rect. A band replaces the
+  group's rect with a path, keeping every attribute but the rect's
+  geometry, so theming and fills apply. Its title moves to the core's
+  title point. Pele inks a title for its own fill, but a band's title
+  sits outside it, so it takes the ink of what is behind it: the page,
+  or a parent band's fill. A band's fill carries the band, so the edge
+  ink and casings test its curved area, not its bounds. A box title
+  takes the first of Pele's three spots along its edge that no redrawn
+  edge crosses, or else the core's spot, chosen clear of every route.
+  The core puts a box's title room at the top, or at the
+  bottom where spokes or chords cross the top, as in the wheel. The
+  water cycle and the ring of four no longer
+  overlap. All 14 demo cases without a subgraph, and three more
+  diagrams, render byte-identical to main built with the same core.
+  One existing ink test
+  changed: it relied on a box covering a non-member, the bug this
+  fixes.
