@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { register, render } from 'pele';
 import flowchart from 'pele/diagrams/flowchart';
+import { overFills } from './render.js';
 import { withCircularLayout } from './index.js';
 import { attr, childGroups, findGroup, markupBox, withAttr } from './svg.js';
 
@@ -297,7 +298,7 @@ describe('edge ink', () => {
     expect(edge(svg, 'L_A_B_0').open).toBe(plain.open);
   });
 
-  it('drops the stale ink of an edge moved off its fill', () => {
+  it('drops the stale ink of an edge moved onto a border, and cases it', () => {
     // Wide spacing bows the rim's arcs out past the box around them.
     const body = `flowchart TB\n  subgraph S\n    A --> B --> C --> D --> E --> A\n  end\n  ${DARK}`;
     const plain = render(body).svg;
@@ -322,5 +323,28 @@ describe('edge ink', () => {
     expect(attr(own.open, 'stroke')).toBeUndefined();
     expect(markerFills(own)).toEqual(['#f00']);
     expect(cased(svg, own)).toBe(true);
+  });
+
+  describe('the ink decision', () => {
+    // No realistic diagram moves an inked edge wholly off its fill: the
+    // circle keeps a group's members together inside its box. So the
+    // off-fill branch is checked on synthetic lines.
+    const fill = { box: { minX: 0, minY: 0, maxX: 100, maxY: 100 }, style: ' style="rx:var(--_r);fill:#003;"' };
+    const inside = [{ x: 20, y: 50 }, { x: 80, y: 50 }];
+
+    it('inks a line wholly over a fill', () => {
+      expect(overFills(inside, inside, [fill], '')).toBe('var(--pele-fg-on-dark,#fff)');
+    });
+
+    it('gives no ink and no casing to a line off every fill', () => {
+      const off = [{ x: 120, y: 50 }, { x: 180, y: 50 }];
+      expect(overFills(off, off, [fill], '')).toBeUndefined();
+    });
+
+    it('cases a line across a border, or with its own stroke', () => {
+      const across = [{ x: 50, y: 50 }, { x: 150, y: 50 }];
+      expect(overFills(across, across, [fill], '')).toBe('');
+      expect(overFills(inside, inside, [fill], ' style="stroke:#f00;"')).toBe('');
+    });
   });
 });

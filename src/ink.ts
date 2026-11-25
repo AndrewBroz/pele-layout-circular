@@ -3,7 +3,9 @@
  * draws a line over it in. Copied from Pele's `svg/ink.ts`, which
  * isn't exported. Only hex and named colors are read: the flowchart
  * grammar can't spell `rgb()` or `hsl()`, whose parentheses it
- * rejects. Any other color counts as opaque and unknown, as in Pele.
+ * rejects, so Pele's parsing of them is left out. Any other color
+ * counts as opaque with an unknown ink, as an unparsable one does in
+ * Pele.
  */
 
 /** Named colors that #fff contrasts with more than #1f1f1f does, and
@@ -73,6 +75,8 @@ export const paints = (style: string): boolean => {
  * The color Pele draws a line in over a group's fill, or undefined
  * where that depends on what is under the fill: an unknown color, or
  * one less than half opaque (`ink` and `pick` in Pele's `svg/ink.ts`).
+ * Pele's memo cache and its `text` parameter are left out: `edgeInk`
+ * never passes `text`, and the wrapper asks once per edge.
  */
 export const ink = (style: string): string | undefined => {
   const fill = RE_FILL.exec(style);

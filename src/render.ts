@@ -122,7 +122,7 @@ const clips = (a: Point, b: Point, box: Box): boolean => {
 
 /** A filled group box, and its rect's style attribute as Pele wrote
  *  it (`Fill` in Pele's `svg/edges.ts`). */
-interface Fill {
+export interface Fill {
   box: Box;
   style: string;
 }
@@ -173,7 +173,7 @@ const fillUnder = (line: Point[], tips: Point[], fills: Fill[]): Fill | '' | und
  * its own stroke color, or over a fill whose ink is unknown, gets a
  * casing instead of an ink.
  */
-const overFills = (line: Point[], tips: Point[], fills: Fill[], lineStyle: string): string | undefined => {
+export const overFills = (line: Point[], tips: Point[], fills: Fill[], lineStyle: string): string | undefined => {
   const fill = fillUnder(line, tips, fills);
   if (!fill) return fill;
   return (/[";]stroke:/.test(lineStyle) ? undefined : ink(fill.style)) ?? '';
