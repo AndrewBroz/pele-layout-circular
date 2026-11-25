@@ -95,3 +95,11 @@ Append-only, dated. The plan these belong to is `docs/PLAN.md`.
   published `files`. `npm run lint` type-checks it with its own
   tsconfig, which adds the DOM types so `src/` itself can't use them
   by accident.
+- **2026-11-25 — The core comes from npm.** layout-circular is
+  published, so the devDependency is `layout-circular@^0.1.0` from npm
+  instead of the GitHub repository. Installs no longer build the core
+  from a git checkout. The range starts at 0.1.0 rather than 0.1.1
+  because the core's 0.1.1, published by its workflow, was not yet
+  visible on the registry; the two have the same code. 0.1.1 of this
+  package is its first release from the workflow, which validates its
+  trusted publisher.

@@ -81,9 +81,8 @@ or the published package.
 
 ## Development
 
-`layout-circular` is a devDependency that the build compiles in. It
-installs from GitHub, and npm builds it on install. To work on both at
-once, `npm link` a local checkout of the core.
+`layout-circular` is a devDependency from npm that the build compiles
+in. To work on both at once, `npm link` a local checkout of the core.
 
 Three gates, all green before committing changes to `src/`:
 
