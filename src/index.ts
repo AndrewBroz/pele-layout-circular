@@ -38,8 +38,9 @@ export const withCircularLayout = <Model extends FlowchartModel>(
       autoDirection: false,
     });
     const flow = config.flowchart;
-    const nodeSpacing =
-      typeof flow === 'object' && flow !== null && !Array.isArray(flow) ? (flow as Record<string, unknown>).nodeSpacing : undefined;
+    const flowConfig =
+      typeof flow === 'object' && flow !== null && !Array.isArray(flow) ? (flow as Record<string, unknown>) : {};
+    const nodeSpacing = flowConfig.nodeSpacing;
     return renderCircular(
       model,
       base,
@@ -49,6 +50,9 @@ export const withCircularLayout = <Model extends FlowchartModel>(
         // The diagram picked circular-ccw by name in its own config, the
         // most local signal there is, so it outranks options set in code.
         ...(name === 'circular-ccw' && { direction: 'counterclockwise' as const }),
+        // `curve` already means edge shape, so a linear curve draws
+        // straight edges. Every other curve keeps the arcs.
+        ...(flowConfig.curve === 'linear' && { edges: 'straight' as const }),
       },
       renderOptions,
       titleWidth(flowchart, model, config, renderOptions)

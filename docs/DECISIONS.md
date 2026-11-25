@@ -103,3 +103,14 @@ Append-only, dated. The plan these belong to is `docs/PLAN.md`.
   visible on the registry; the two have the same code. 0.1.1 of this
   package is its first release from the workflow, which validates its
   trusted publisher.
+- **2026-11-25 — `curve: linear` draws straight edges.** A diagram
+  whose config sets `flowchart.curve: linear` gets the core's
+  `edges: 'straight'`: the ring becomes a polygon, and a three-cycle a
+  triangle. The owner chose this knob over a new layout name, for the
+  reasons recorded in layout-circular's DECISIONS. Pele already reads
+  `flowchart.curve` from frontmatter, for its own layout. Only
+  `linear` maps; every other curve keeps the arcs. Like
+  `circular-ccw`, the diagram's own config outranks options set in
+  code. A per-edge `curve` is not read. The demo gallery has a case
+  for it. This needs a release of layout-circular with the `edges`
+  option.
