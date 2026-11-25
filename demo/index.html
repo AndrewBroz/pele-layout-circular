@@ -5,8 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>pele-layout-circular — demo</title>
     <style>
-      /* The page's own theme. The diagrams take --pele-* from .theme-light
-         and .theme-dark below. */
+      /* The page's own theme. The --pele-* variables are set on body by
+         .theme-light and .theme-dark below, and the diagrams inherit them.
+         The light values exactly match Pele's defaults (src/svg/theme.ts
+         in Pele). The dark set is hand-picked, because Pele has no dark
+         defaults. */
       :root { color-scheme: light; }
       body {
         margin: 0;
