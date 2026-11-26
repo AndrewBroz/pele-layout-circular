@@ -73,7 +73,7 @@ const markersOf = (edge: FlowchartModel['edges'][number]): [string, string] => {
 
 /** A marker with its tip at `p`, pointing along unit `(dx, dy)`, drawn
  *  as Pele draws it (`marker` in Pele's `svg/edges.ts`). */
-const marker = (type: string, p: Point, dx: number, dy: number, color: string, stroke = 'none'): string => {
+const marker = (type: string, p: Point, dx: number, dy: number, color: string): string => {
   const nx = -dy;
   const ny = dx;
   if (type === 'arrow_point') {
@@ -82,10 +82,10 @@ const marker = (type: string, p: Point, dx: number, dy: number, color: string, s
     const half = ARROW * 0.42;
     return `<path class="pele-marker" d="M${num(p.x)},${num(p.y)}L${num(bx + nx * half)},${num(by + ny * half)}L${num(
       bx - nx * half
-    )},${num(by - ny * half)}Z" fill="${color}" stroke="${stroke}"/>`;
+    )},${num(by - ny * half)}Z" fill="${color}" stroke="none"/>`;
   }
   if (type === 'arrow_circle') {
-    return `<circle class="pele-marker" cx="${num(p.x - dx * 4)}" cy="${num(p.y - dy * 4)}" r="3.5" fill="${color}" stroke="${stroke}"/>`;
+    return `<circle class="pele-marker" cx="${num(p.x - dx * 4)}" cy="${num(p.y - dy * 4)}" r="3.5" fill="${color}" stroke="none"/>`;
   }
   if (type === 'arrow_cross') {
     const cx = p.x - dx * 4;
@@ -100,12 +100,6 @@ const marker = (type: string, p: Point, dx: number, dy: number, color: string, s
   }
   return '';
 };
-
-/** How much wider a casing is than its edge (`CASE` in Pele's `svg/edges.ts`). */
-const CASE = 4;
-
-/** Pele's own casing layer (`casingsSvg` in Pele's `svg/edges.ts`). */
-const CASINGS_OPEN = `<g class="pele-casings" fill="none" stroke="var(--_bg)" stroke-width="${1 + CASE}" stroke-linecap="round" stroke-linejoin="round" pointer-events="none">`;
 
 /** Whether a segment overlaps a box, by Liang-Barsky clipping (`clips`
  *  in Pele's `svg/edges.ts`). */
@@ -158,113 +152,171 @@ const insideBand = (b: Band, p: Point): number => {
   return Math.min(rho - b.rIn, b.rOut - rho, rho * Math.sin(Math.max(-Math.PI / 2, Math.min(Math.PI / 2, toEnds))));
 };
 
-/** The line's points, with a point every 4px or closer between them,
- *  so a curved wall can't slip between two far-apart points. */
+/** The line's points, with a point every pixel or closer between
+ *  them, so a curved wall can't slip between two far-apart points and
+ *  a border is found to within half a pixel. */
 const dense = (line: Point[]): Point[] => {
   const out: Point[] = [];
   for (let k = 0; k + 1 < line.length; k++) {
     const a = line[k]!;
     const b = line[k + 1]!;
-    const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 4));
+    const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y)));
     for (let i = 0; i < steps; i++) out.push({ x: a.x + ((b.x - a.x) * i) / steps, y: a.y + ((b.y - a.y) * i) / steps });
   }
   if (line.length > 0) out.push(line[line.length - 1]!);
   return out;
 };
 
-/**
- * The innermost fill that holds a whole edge and its marker tips, `''`
- * where the edge crosses a fill's border, or undefined off every fill
- * (`fillUnder` and `enters` in Pele's `svg/edges.ts`). An edge that
- * only touches a fill counts. Pele insets each box by half a pixel, so
- * an edge along a border doesn't count as entering.
- */
-const fillUnder = (line: Point[], tips: Point[], fills: Fill[]): Fill | '' | undefined => {
-  const bounds = emptyBox();
-  for (const p of line.concat(tips)) grow(bounds, p.x, p.y);
-  let holder: Fill | undefined;
-  let least = Infinity;
-  for (const fill of fills) {
-    const f = fill.box;
-    const inset = { minX: f.minX + 0.5, minY: f.minY + 0.5, maxX: f.maxX - 0.5, maxY: f.maxY - 0.5 };
-    if (bounds.maxX < inset.minX || bounds.minX > inset.maxX || bounds.maxY < inset.minY || bounds.minY > inset.maxY) continue;
-    if (fill.band) {
-      // A band's wall is curved: the line, sampled densely, enters it
-      // where a point lies more than half a pixel inside.
-      const band = fill.band;
-      const points = dense(line).concat(tips);
-      if (!points.some((p) => insideBand(band, p) > 0.5)) continue;
-      if (points.some((p) => insideBand(band, p) < 0)) return '';
-      const area = ((band.end - band.start) / 2) * (band.rOut * band.rOut - band.rIn * band.rIn);
-      if (area < least) {
-        least = area;
-        holder = fill;
+/** How far a point lies inside a fill, px: negative outside. Outside a
+ *  box's corner, the nearer side counts: only the sign, and the depth
+ *  within a pixel of a border, are read. */
+const depth = (fill: Fill, p: Point): number => {
+  if (fill.band) return insideBand(fill.band, p);
+  const b = fill.box;
+  return Math.min(p.x - b.minX, b.maxX - p.x, p.y - b.minY, b.maxY - p.y);
+};
+
+const fillArea = (fill: Fill): number => {
+  const b = fill.band;
+  if (b) return ((b.end - b.start) / 2) * (b.rOut * b.rOut - b.rIn * b.rIn);
+  return (fill.box.maxX - fill.box.minX) * (fill.box.maxY - fill.box.minY);
+};
+
+/** A stretch of a line over one surface: `at` is how far along the
+ *  line it starts, px, and `ink` its color over a fill, undefined for
+ *  the line's plain color. */
+export interface Stretch {
+  points: Point[];
+  at: number;
+  ink?: string;
+}
+
+/** A line split into stretches by the fills it runs over, and the ink
+ *  under each of its two marker tips, undefined for the plain color. */
+export interface Painted {
+  stretches: Stretch[];
+  tips: [string | undefined, string | undefined];
+}
+
+/** A dash pattern as plain numbers, doubled when odd as SVG does, or
+ *  undefined for a solid line or a pattern that isn't plain numbers. */
+export const dashPattern = (value: string | undefined): number[] | undefined => {
+  if (value === undefined || value.trim() === 'none') return undefined;
+  const parts = value.trim().split(/[\s,]+/);
+  if (!parts.every((v) => /^[\d.]+(?:px)?$/.test(v))) return undefined;
+  const dashes = parts.map((v) => parseFloat(v));
+  return dashes.length % 2 ? dashes.concat(dashes) : dashes;
+};
+
+/** The middle of the dash gap nearest `s` px along a dashed line. */
+const intoGap = (s: number, dashes: number[]): number => {
+  const period = dashes.reduce((a, b) => a + b, 0);
+  if (!(period > 0)) return s;
+  let best = s;
+  let far = Infinity;
+  let c = 0;
+  for (let j = 0; j < dashes.length; j++) {
+    if (j % 2 && dashes[j]! > 0) {
+      const mid = c + dashes[j]! / 2;
+      for (const k of [-1, 0, 1]) {
+        const g = (Math.floor(s / period) + k) * period + mid;
+        if (Math.abs(g - s) < far) [far, best] = [Math.abs(g - s), g];
       }
-      continue;
     }
-    let touched = false;
-    for (let k = 0; k + 1 < line.length && !touched; k++) {
-      const a = line[k]!;
-      const b = line[k + 1]!;
-      const off =
-        (a.x < inset.minX && b.x < inset.minX) ||
-        (a.x > inset.maxX && b.x > inset.maxX) ||
-        (a.y < inset.minY && b.y < inset.minY) ||
-        (a.y > inset.maxY && b.y > inset.maxY);
-      touched = !off && clips(a, b, inset);
-    }
-    for (const t of tips) touched ||= t.x > inset.minX && t.x < inset.maxX && t.y > inset.minY && t.y < inset.maxY;
-    if (!touched) continue;
-    if (bounds.minX < f.minX || bounds.maxX > f.maxX || bounds.minY < f.minY || bounds.maxY > f.maxY) return '';
-    const area = (f.maxX - f.minX) * (f.maxY - f.minY);
-    if (area < least) {
-      least = area;
-      holder = fill;
-    }
+    c += dashes[j]!;
   }
-  return holder;
+  return best;
 };
 
 /**
- * The ink for an edge drawn over the fills: the color of the innermost
- * fill that holds it, `''` for a casing, or undefined off every fill
- * (`overFills` and `edgeInk` in Pele's `svg/edges.ts`). An edge with
- * its own stroke color, or over a fill whose ink is unknown, gets a
- * casing instead of an ink.
+ * How a line is painted over the filled groups. Pele inks a line that
+ * lies wholly over a fill, and cases a line that crosses a border, its
+ * markers too (`fillUnder`, `overFills` and `edgeInk` in Pele's
+ * `svg/edges.ts`). A casing under an arrowhead halos it, and a casing
+ * stopped short of one ends in a knob. So here the line is split where
+ * it crosses a border, and each stretch takes the ink of the innermost
+ * fill under it, as Pele inks a whole line. Over a fill whose ink isn't
+ * used, because the line has its own stroke or the ink is unknown, a
+ * stretch keeps its plain color. Nothing is cased. Each marker takes
+ * the ink under its tip. A dashed line in `dashes` is split in the
+ * middle of the gap nearest each border, so no dash breaks in two. As
+ * in Pele, a point counts as over a fill when it lies more than half a
+ * pixel inside.
  */
-export const overFills = (line: Point[], tips: Point[], fills: Fill[], lineStyle: string): string | undefined => {
-  const fill = fillUnder(line, tips, fills);
-  if (!fill) return fill;
-  return (/[";]stroke:/.test(lineStyle) ? undefined : ink(fill.style)) ?? '';
+export const paintLine = (line: Point[], fills: Fill[], lineStyle: string, tips: readonly [Point, Point], dashes?: number[]): Painted => {
+  const points = dense(line);
+  const along = [0];
+  for (let i = 1; i < points.length; i++)
+    along.push(along[i - 1]! + Math.hypot(points[i]!.x - points[i - 1]!.x, points[i]!.y - points[i - 1]!.y));
+  const total = along[along.length - 1]!;
+  const depths = fills.map((f) => points.map((p) => depth(f, p)));
+  const areas = fills.map(fillArea);
+  const ownStroke = /[";]stroke:/.test(lineStyle);
+  /** The innermost fill at these depths, one per fill, or -1. */
+  const innermost = (at: (f: number) => number): number => {
+    let best = -1;
+    for (let f = 0; f < fills.length; f++) if (at(f) > 0.5 && (best < 0 || areas[f]! < areas[best]!)) best = f;
+    return best;
+  };
+  const inkOf = (f: number): string | undefined => (f < 0 || ownStroke ? undefined : ink(fills[f]!.style));
+  const under = points.map((_, i) => innermost((f) => depths[f]![i]!));
+
+  // Where the line crosses a border between two points a pixel apart:
+  // where the depth of a fill it enters or leaves passes zero.
+  const cross = (i: number): number => {
+    const d = depths.find((d) => d[i - 1]! > 0.5 !== d[i]! > 0.5);
+    const t = d ? Math.max(0, Math.min(1, d[i - 1]! / (d[i - 1]! - d[i]! || 1))) : 0.5;
+    return along[i - 1]! + (along[i]! - along[i - 1]!) * t;
+  };
+  let runs: { from: number; to: number; ink?: string }[] = [];
+  let start = 0;
+  for (let i = 1; i <= points.length; i++) {
+    if (i < points.length && under[i] === under[i - 1]) continue;
+    const to = i < points.length ? cross(i) : total;
+    const color = inkOf(under[i - 1]!);
+    const last = runs[runs.length - 1];
+    if (last && last.ink === color) last.to = to;
+    else runs.push({ from: start, to, ...(color ? { ink: color } : {}) });
+    start = to;
+  }
+  if (dashes && runs.length > 1) {
+    for (let r = 1; r < runs.length; r++) runs[r - 1]!.to = runs[r]!.from = Math.max(0, Math.min(total, intoGap(runs[r]!.from, dashes)));
+    // A stretch shorter than a gap away is folded into its neighbors.
+    const kept: typeof runs = [];
+    for (const r of runs.filter((r) => r.to - r.from > 0.01)) {
+      const last = kept[kept.length - 1];
+      if (last && last.ink === r.ink) last.to = r.to;
+      else if (last) kept.push({ ...r, from: last.to });
+      else kept.push({ ...r, from: 0 });
+    }
+    runs = kept;
+  }
+
+  // The line from `a` to `b` px along it, through the line's own
+  // vertices, not the samples.
+  const vertexAlong = [0];
+  for (let k = 1; k < line.length; k++)
+    vertexAlong.push(vertexAlong[k - 1]! + Math.hypot(line[k]!.x - line[k - 1]!.x, line[k]!.y - line[k - 1]!.y));
+  const at = (s: number): Point => {
+    let k = 1;
+    while (k < line.length - 1 && vertexAlong[k]! < s) k++;
+    const t = Math.max(0, Math.min(1, (s - vertexAlong[k - 1]!) / (vertexAlong[k]! - vertexAlong[k - 1]! || 1)));
+    return { x: line[k - 1]!.x + (line[k]!.x - line[k - 1]!.x) * t, y: line[k - 1]!.y + (line[k]!.y - line[k - 1]!.y) * t };
+  };
+  const between = (a: number, b: number): Point[] => [at(a), ...line.filter((_, k) => vertexAlong[k]! > a && vertexAlong[k]! < b), at(b)];
+  const stretches = runs.map((r): Stretch => ({ points: runs.length === 1 ? line : between(r.from, r.to), at: r.from, ...(r.ink ? { ink: r.ink } : {}) }));
+  const tipInk = (p: Point) => inkOf(innermost((f) => depth(fills[f]!, p)));
+  return { stretches, tips: [tipInk(tips[0]), tipInk(tips[1])] };
 };
 
-/**
- * A wider page-colored stroke under an edge, as faint as it, with its
- * markers stripped of their class so marker styles skip them (`casing`
- * in Pele's `svg/edges.ts`). `line` is the edge's style attribute as
- * Pele wrote it, still escaped, so what is copied from it stays safe.
- */
-const casing = (d: string, markers: string, line: string, thick: boolean): string => {
-  const decl = (prop: string): string | undefined =>
-    line.includes(prop) ? new RegExp(`[";]${prop}:([^;"]+);`).exec(line)?.[1]!.trim() : undefined;
-  const stroke = decl('stroke');
-  if (stroke === 'none' || stroke === 'transparent') return '';
-  // Pele draws a thick edge 2.5 wide.
-  const width = thick ? '2.5' : decl('stroke-width');
-  let attrs = '';
-  let style = '';
-  if (width !== undefined && /^[\d.]+(?:px)?$/.test(width)) {
-    if (parseFloat(width) !== 1) attrs = ` stroke-width="${num(parseFloat(width) + CASE)}"`;
-  } else if (width !== undefined) {
-    style += `stroke-width:calc(${width} + ${CASE}px);`;
-  }
-  for (const prop of ['opacity', 'stroke-opacity']) {
-    const value = decl(prop);
-    if (value !== undefined) style += `${prop}:${value};`;
-  }
-  const body = `<path d="${d}"/>` + markers.replace(/ class="pele-marker"/g, '');
-  return attrs || style ? `<g${attrs}${style ? ` style="${style}"` : ''}>${body}</g>` : body;
+/** A line's width where it is a plain number, else 1 (Pele draws a
+ *  thick edge 2.5 wide). */
+const lineWidth = (line: string, thick: boolean): number => {
+  const width = thick ? '2.5' : (/[";]stroke-width:([^;"]+);/.exec(line)?.[1]!.trim() ?? '1');
+  return /^[\d.]+(?:px)?$/.test(width) ? parseFloat(width) : 1;
 };
+
+const pathD = (points: Point[]): string => 'M' + points.map((p) => `${num(p.x)},${num(p.y)}`).join('L');
 
 const unit = (from: Point, to: Point): [number, number] => {
   const len = Math.hypot(to.x - from.x, to.y - from.y) || 1;
@@ -588,7 +640,7 @@ export const renderCircular = (
   }
 
   // Filled group boxes, as Pele collects them: an edge over one takes
-  // its ink, and an edge that crosses one's border gets a casing.
+  // its ink, stretch by stretch.
   const fills: Fill[] = [];
   for (const [id, c] of clusterById) {
     const shape = shapeOf.get(id);
@@ -605,7 +657,6 @@ export const renderCircular = (
     }
   }
 
-  let casingsOut = '';
   let edgesOut = '';
   // Every redrawn line, so a box's title can step out of their way.
   const drawnLines: Point[][] = [];
@@ -630,12 +681,12 @@ export const renderCircular = (
     line[0] = { x: tipStart.x - sdx * ts, y: tipStart.y - sdy * ts };
     line[line.length - 1] = { x: tipEnd.x - edx * te, y: tipEnd.y - edy * te };
     drawnLines.push(line);
-    const d = 'M' + line.map((p) => `${num(p.x)},${num(p.y)}`).join('L');
     const pathTag = /<path\b[^>]*>/.exec(el.inner)?.[0] ?? '<path/>';
     const lineStyle = /\sstyle="[^"]*"/.exec(el.open)?.[0] ?? '';
+    const dashes = dashPattern(attr(pathTag, 'stroke-dasharray') ?? /[";]stroke-dasharray:([^;"]+);/.exec(lineStyle)?.[1]);
     // The ink Pele gave the edge in its own layout is stale: it is
     // worked out again from where the edge runs now.
-    const over = overFills(line, [tipStart, tipEnd], fills, lineStyle);
+    const { stretches, tips } = paintLine(line, fills, lineStyle, [tipStart, tipEnd], dashes);
     // Pele's markers carry the edge's plain color, unless Pele inked
     // the edge. An inked edge has no stroke color of its own, so its
     // plain color is the theme's line color. The color can come from
@@ -645,26 +696,43 @@ export const renderCircular = (
       attr(el.open, 'stroke') !== undefined
         ? 'var(--_l)'
         : escapeAttr(attr(/<[^>]*class="pele-marker"[^>]*>/.exec(el.inner)?.[0] ?? '', 'fill') ?? 'var(--_l)');
-    const color = over || plain;
-    if (over === '') {
-      const bg = 'var(--_bg)';
-      casingsOut += casing(
-        d,
-        marker(startType, tipStart, sdx, sdy, bg, bg) + marker(endType, tipEnd, edx, edy, bg, bg),
-        lineStyle,
-        e.stroke === 'thick'
-      );
-    }
+    // A marker takes the ink under its tip.
+    const startColor = tips[0] ? escapeAttr(tips[0]) : plain;
+    const endColor = tips[1] ? escapeAttr(tips[1]) : plain;
     // Pele writes the ink as the group's stroke, after its data-id. A
-    // stale one goes.
+    // stale one goes. A line in several stretches carries each one's
+    // ink on its path. Its dashes run on from one path to the next, and
+    // its joins sit in dash gaps. A solid line's paths meet with butt
+    // ends, so two round ends don't overlap where a stroke-opacity
+    // would show it; its two outer ends reach as far as round ones.
     let open = el.open.replace(/\sstroke="[^"]*"/, '');
-    if (over) open = open.replace(/\sdata-id="[^"]*"/, (id) => `${id} stroke="${escapeAttr(over)}"`);
-    edgesOut +=
-      open +
-      withAttr(pathTag, 'd', d) +
-      marker(startType, tipStart, sdx, sdy, color) +
-      marker(endType, tipEnd, edx, edy, color) +
-      '</g>';
+    let paths: string;
+    const first = stretches[0]!;
+    if (stretches.length === 1) {
+      if (first.ink) open = open.replace(/\sdata-id="[^"]*"/, (id) => `${id} stroke="${escapeAttr(first.ink!)}"`);
+      paths = withAttr(pathTag, 'd', pathD(line));
+    } else {
+      const half = lineWidth(lineStyle, e.stroke === 'thick') / 2;
+      const reach = (p: Point, from: Point): Point => {
+        const [ux, uy] = unit(from, p);
+        return { x: p.x + ux * half, y: p.y + uy * half };
+      };
+      paths = stretches
+        .map((st, k) => {
+          const pts = st.points.slice();
+          if (!dashes) {
+            if (k === 0) pts[0] = reach(pts[0]!, pts[1]!);
+            if (k === stretches.length - 1) pts[pts.length - 1] = reach(pts[pts.length - 1]!, pts[pts.length - 2]!);
+          }
+          let tag = withAttr(pathTag, 'd', pathD(pts));
+          if (st.ink) tag = withAttr(tag, 'stroke', st.ink);
+          if (dashes && st.at > 0) tag = withAttr(tag, 'stroke-dashoffset', num(st.at));
+          if (!dashes) tag = withAttr(tag, 'stroke-linecap', 'butt');
+          return tag;
+        })
+        .join('');
+    }
+    edgesOut += open + paths + marker(startType, tipStart, sdx, sdy, startColor) + marker(endType, tipEnd, edx, edy, endColor) + '</g>';
   }
 
   let labelsOut = '';
@@ -782,7 +850,6 @@ export const renderCircular = (
     head +
     title +
     layer(clustersGroup, clustersOut) +
-    (casingsOut ? CASINGS_OPEN + casingsOut + '</g>' : '') +
     layer(edgesGroup, edgesOut) +
     layer(findGroup(source, 'pele-cluster-titles'), titlesOut) +
     layer(labelsGroup, labelsOut) +

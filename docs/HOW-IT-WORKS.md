@@ -60,9 +60,27 @@ This color is called the ink. An arrow drawn over a group's fill takes
 that fill's ink.
 
 Where an arrow crosses a group's border, Pele draws a casing under it.
-A casing is a thin outline in the background color. It keeps the line
-readable where it crosses the border.
+A casing is a thin outline in the background color. Pele draws it
+under the arrowhead too, which blurs the arrowhead over a light fill
+and outlines it in dark mode.
 
-The wrapper does the same for its redrawn arrows, over boxes and bands
-alike. For a band, it tests the curved strip itself, not the rectangle
-around it.
+The wrapper draws no casings. It splits an arrow where it crosses a
+border instead. Each part takes the ink of the fill it runs over, or
+the plain line color off every fill, and the arrowhead takes the ink
+under its tip. Each part reads on what is under it, so a crossing
+needs no casing. Where the wrapper can't ink a line over a fill (the
+line sets its own color, or the fill is too faint to pick an ink for),
+the line keeps its own or plain color, uncased.
+
+An arrow in one part is drawn as Pele draws it, with its ink on the
+edge's group. An arrow in several parts has one path per part, and
+each inked path carries its ink as its own `stroke`. So CSS that sets
+`stroke` on the edge group (`.pele-edge`) no longer recolors an inked
+part of a split arrow; aim it at `.pele-edge path` instead. Other
+styles on the group, such as its opacity or width, still reach every
+part. A solid arrow's parts meet with butt ends, so a stroke-opacity
+doesn't darken the join. A dashed arrow's parts meet in a dash gap,
+and its dashes run on from one part to the next.
+
+This works over boxes and bands alike. For a band, the wrapper tests
+the curved strip itself, not the rectangle around it.
