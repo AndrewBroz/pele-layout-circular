@@ -36,17 +36,24 @@ A group is drawn as a box or as a band.
 A box hugs its members. Its sides use Pele's tight group padding. Its
 top uses the room Pele leaves for a title.
 
-A band is a curved strip that follows the ring. A group gets one when
-its members span half the ring or more. A box that large would cover
-the middle of the circle. The wrapper turns Pele's group rectangle into
-a path for the band. The path keeps the rectangle's class, `data-id`,
-fill and style, so themes and CSS still apply.
+A group is a box whenever a box around it can clear, however much of
+the ring it covers. layout-circular prefers the turn whose boxes are
+tightest, then the least turn.
+
+A band is a curved strip that follows the ring. A group gets one only
+when no box around it clears, for example when a box would cover a hub
+outside the group. Its outline comes from layout-circular. The wrapper
+turns Pele's group rectangle into a path along that outline. The path
+keeps the rectangle's class, `data-id`, fill and style, so themes and
+CSS still apply.
 
 A band's title sits right outside the band. A band nested inside
 another band puts its title between the two.
 
 A box's title sits on top. layout-circular moves it to the bottom when
-spokes or chords cross the top, as in a wheel.
+the top would meet a node outside the box, rather than turn the ring.
+It also moves it there when spokes or chords cross the top, as in a
+wheel.
 
 The wrapper takes the first of Pele's three spots (left, middle, right)
 that no arrow runs through. If arrows cross all three, the title goes
@@ -83,4 +90,4 @@ doesn't darken the join. A dashed arrow's parts meet in a dash gap,
 and its dashes run on from one part to the next.
 
 This works over boxes and bands alike. For a band, the wrapper tests
-the curved strip itself, not the rectangle around it.
+the band's outline itself, not the rectangle around it.
