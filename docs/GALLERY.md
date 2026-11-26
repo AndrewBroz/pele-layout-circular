@@ -6,7 +6,11 @@ draws mermaid diagrams as SVG. The source is under each picture.
 
 The same diagrams drawn by mermaid are in
 [mermaid-layout-circular's gallery](https://github.com/AndrewBroz/mermaid-layout-circular/blob/main/docs/GALLERY.md).
-`npm run docs:images` redraws them all from `demo/cases.ts`.
+`npm run docs:images` redraws them all from `demo/cases.ts`. The
+[live gallery](https://andrewbroz.github.io/pele-layout-circular/gallery.html)
+draws them in your browser. In the
+[playground](https://andrewbroz.github.io/pele-layout-circular/),
+you can pick any of them and edit it.
 
 ## Shapes
 

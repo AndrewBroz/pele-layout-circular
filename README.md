@@ -38,6 +38,10 @@ Pele's own layout draws the same text like this:
 
 <img src="docs/media/water-cycle-pele.svg" width="490" alt="The same five boxes in a row, with one long arrow looping back from Collection to Evaporation.">
 
+Try it in the
+[playground](https://andrewbroz.github.io/pele-layout-circular/).
+Pick an example, edit its text, and switch the settings on and off.
+
 ## Which package to use
 
 The same circular layout comes in four packages. Pick the one that
@@ -156,7 +160,9 @@ one node linked to most of the others. A satellite is a second, smaller
 cycle hanging off the ring, drawn as its own circle.
 
 Each picture's source, and more examples, are in
-[docs/GALLERY.md](docs/GALLERY.md).
+[docs/GALLERY.md](docs/GALLERY.md). The
+[live gallery](https://andrewbroz.github.io/pele-layout-circular/gallery.html)
+draws every case in your browser.
 
 ## Options
 
@@ -202,8 +208,9 @@ A layout hook for Pele is proposed in
 
 ## Demo and development
 
-`npm run dev` serves a gallery of every demo case. Each case is drawn
-twice, by this layout and by Pele's own layout, side by side. A button
+`npm run dev` serves the playground at `/`. At `/gallery.html` it
+serves a gallery of every demo case. Each case is drawn twice, by this
+layout and by Pele's own layout, side by side. A button on each page
 switches the colors between light and dark.
 
 Three checks must pass before committing changes to `src/`:

@@ -14,6 +14,14 @@ semver range. A new core release reaches this package when the range
 allows it and `npm install` refreshes the lockfile. The core is
 compiled into this package's bundle, so nothing changes for users.
 
+## Demo site
+
+`.github/workflows/pages.yml` builds the demo site
+(`vite build demo`) and deploys it to GitHub Pages on every push to
+main. Repo setting, once: Pages → Source → GitHub Actions. The
+playground lands at `https://andrewbroz.github.io/pele-layout-circular/`
+and the gallery at `/gallery.html`.
+
 ## Release order
 
 The packages depend on each other, so they release in this order.
