@@ -20,6 +20,8 @@ The circular layout for Pele. Read `README.md`, `docs/PLAN.md` and
   edge ids) say where they come from, so they can be checked when
   Pele changes.
 - Tests render through real Pele.
+- Visual changes are judged by rendering. `npm run dev` serves the
+  playground at `/` and the gallery at `/gallery.html`.
 
 ## Docs
 

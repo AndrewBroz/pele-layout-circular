@@ -269,3 +269,19 @@ Append-only, dated. The plan these belong to is `docs/PLAN.md`.
   and a nested band with `hub-nested-band`. `lifecycle-band.svg` and
   `nested-band.svg` stay until the next release, because the npm README
   loads its pictures from `main`.
+- **2026-11-26 — A playground.** The demo site's front page is a
+  playground, published on GitHub Pages. A visitor picks an example
+  from a drop-down, edits its text, and sees it drawn by Pele. The
+  owner asked for the drop-down, a quick editor for the frontmatter
+  settings, and a Circular toggle in place of a side-by-side
+  comparison. The controls are Circular, its direction and Straight
+  edges. They write into the text, so what is drawn is always what a
+  visitor can copy. The edits go through the `yaml` library, which
+  keeps a visitor's comments and key order. It is a dev dependency,
+  used by the demo only; the package still has no runtime
+  dependencies. The examples are the water cycle and every heading in
+  `docs/GALLERY.md`, and a test keeps the two lists matched. The
+  side-by-side grid moves to `gallery.html`. mermaid-layout-circular
+  has the same page; the frontmatter and link modules are copies of
+  its own. The design is in its
+  [playground spec](https://github.com/AndrewBroz/mermaid-layout-circular/blob/main/docs/superpowers/specs/2026-11-26-playground-design.md).
