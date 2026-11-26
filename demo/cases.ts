@@ -275,8 +275,8 @@ export const cases: Case[] = [
 `,
   },
   {
-    title: 'a subgraph spanning most of the ring is a band',
-    doc: 'lifecycle-band',
+    title: 'a subgraph spanning most of the ring is still a box when one clears',
+    doc: 'lifecycle-funded',
     wide: true,
     body: `flowchart LR
   I[Idea]
@@ -292,8 +292,51 @@ export const cases: Case[] = [
 `,
   },
   {
+    title: 'a subgraph no box can clear, round a hub outside it, is a band',
+    doc: 'hub-band',
+    wide: true,
+    body: `flowchart LR
+  subgraph Core
+    A[Alpha]
+    B[Bravo]
+    C[Charlie]
+    D[Delta]
+  end
+  A --> B --> C --> D --> E[Echo] --> F[Foxtrot] --> A
+  A --> H[Registry]
+  B --> H
+  C --> H
+  D --> H
+  E --> H
+  F --> H
+`,
+  },
+  {
     title: 'a subgraph nested in a band is a band too, its title between the two',
-    doc: 'nested-band',
+    doc: 'hub-nested-band',
+    wide: true,
+    body: `flowchart LR
+  subgraph Core
+    A[Alpha]
+    subgraph Hot
+      B[Bravo]
+      C[Charlie]
+    end
+    D[Delta]
+  end
+  A --> B --> C --> D --> E[Echo] --> F[Foxtrot] --> A
+  A --> H[Registry]
+  B --> H
+  C --> H
+  D --> H
+  E --> H
+  F --> H
+  style Hot fill:#ffd
+`,
+  },
+  {
+    title: 'a subgraph nested in a box is a box inside it',
+    doc: 'nested-box',
     wide: true,
     body: `flowchart LR
   P[Plan]

@@ -256,3 +256,16 @@ Append-only, dated. The plan these belong to is `docs/PLAN.md`.
   `.pele-edge` no longer recolors that stretch. HOW-IT-WORKS says to
   aim at `.pele-edge path`. A line in one stretch keeps its ink on
   the group, as in Pele.
+- **2026-11-26 — Groups by fit, from layout-circular 0.3.0.** The
+  devDependency is `^0.3.0`. The core now picks a group's shape by fit.
+  A group is a box when one clears, however much of the ring it covers.
+  A box may put its title below at a turn that can't clear with titles
+  on top. A group is a band only when no box fits. The owner picked
+  this from renders; it is provisional and may change. Bands are drawn
+  as before. The band tests use a hub outside a four-of-six group,
+  since the six-of-eight "Funded" diagram is a box now. The test of ink
+  on an arc bowed past its box became a test that the arcs stay inside:
+  the core's box now holds them. The docs show a band with `hub-band`
+  and a nested band with `hub-nested-band`. `lifecycle-band.svg` and
+  `nested-band.svg` stay until the next release, because the npm README
+  loads its pictures from `main`.
