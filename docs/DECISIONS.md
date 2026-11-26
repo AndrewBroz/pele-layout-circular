@@ -203,3 +203,56 @@ Append-only, dated. The plan these belong to is `docs/PLAN.md`.
   handled yet" heading is now "Limits", and its title item now says
   what the code does: with every Pele spot crossed, a box title takes
   the core's spot, not the left.
+- **2026-11-25 — No arrowhead is cased; a line is inked stretch by
+  stretch.** An edge whose arrowhead ends in a filled group got Pele's
+  casing under its line and its markers. The casing haloed the
+  arrowhead: a pale smudge over a light fill in light mode, a dark
+  outline in dark mode. The owner saw it on an Idea to Spec arrow
+  entering a band, and judged it a defect. Pele's own layout does the
+  same for an edge into a filled subgraph, so the defect is upstream
+  too. Three fixes were rendered in both themes. A casing only on the
+  stretch around the crossing left a dark knot on the line in dark
+  mode, and a long dark sliver where an arc crosses a border at a
+  shallow angle. Dropping the casing under the markers alone left a
+  light gray arrowhead on a pale fill in dark mode. The fix taken
+  splits a line where it crosses a fill's border. Each stretch takes
+  the ink of the innermost fill under it, as Pele inks a whole line
+  over a fill, and the plain color off every fill. Each marker takes
+  the color of the stretch it ends. Every stretch then reads on its
+  own surface, so a crossing needs no casing, and the line simply
+  passes over the border. A line in one stretch is drawn as before,
+  its ink on its group. A line in several has one path per stretch,
+  each with its own `stroke`, and a dotted line's later paths carry a
+  `stroke-dashoffset` that keeps the dashes in step. A casing is left
+  only under a stretch over a fill whose ink isn't used: the line
+  sets its own stroke, or the fill's ink is unknown. That casing never
+  holds a marker, and it stops a casing's round end and a pixel short
+  of the marker's back. `paintLine` replaces the copies of Pele's
+  `fillUnder` and `overFills`. This departs from Pele's look on
+  purpose, and the casing tests now check the departure.
+- **2026-11-25 — No casings at all; markers are inked at the tip.**
+  Review of the first fix found the casings that remained were still
+  defects. A line with its own stroke, or over a faint fill, kept a
+  casing that ended in a round knob a few pixels before a bare
+  arrowhead. Over a faint fill in dark mode, it read as tram tracks.
+  Those casings are gone. Such a line keeps its own or plain color,
+  uncased. Over a faint fill, the page shows through more than half,
+  so the plain color, chosen for the page, still reads. That was
+  checked in both themes. The casing layer, and its copies of Pele's
+  `casing` and `casingsSvg`, are removed. A marker now takes the ink
+  under its tip, not under the line's trimmed end, which can lie on
+  the other side of a border. A search of about two thousand ring,
+  hub and chord diagrams found no layout that puts a border inside an
+  arrowhead, so a synthetic test covers it. Where a solid line's
+  stretches met, their round ends overlapped, and a stroke-opacity
+  darkened the overlap. Those paths now have butt ends, and the two
+  outer ends are pushed out half a line width, to reach as far as
+  round ones. A dashed line keeps its round ends, and each join moves
+  to the middle of the nearest dash gap, so no dash breaks in two.
+  The color change sits at most half a dash period from the border.
+  An inked stretch of a split line still carries its ink as the
+  path's own `stroke`. A group-level CSS `stroke` can't recolor one
+  stretch of a line and leave another stretch alone, so CSS aimed at
+  `.pele-edge` no longer recolors that stretch. HOW-IT-WORKS says to
+  aim at `.pele-edge path`. A line in one stretch keeps its ink on
+  the group, as in Pele.

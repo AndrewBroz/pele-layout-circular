@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { register, render } from 'pele';
 import flowchart from 'pele/diagrams/flowchart';
-import { overFills } from './render.js';
+import { dashPattern, paintLine } from './render.js';
 import { withCircularLayout } from './index.js';
 import { attr, childGroups, findGroup, markupBox, withAttr } from './svg.js';
 
@@ -554,64 +554,43 @@ describe('collapsed subgraphs', () => {
   });
 });
 
+type P2 = readonly [number, number];
+const vertices = (d: string): P2[] => [...d.matchAll(/(-?[\d.]+),(-?[\d.]+)/g)].map((m) => [Number(m[1]), Number(m[2])] as const);
+const edgeOf = (svg: string, id: string) => childGroups(findGroup(svg, 'pele-edges')!.inner).find((el) => attr(el.open, 'data-id') === id)!;
+const length = (pts: P2[]) => pts.reduce((sum, p, i) => (i ? sum + Math.hypot(p[0] - pts[i - 1]![0], p[1] - pts[i - 1]![1]) : 0), 0);
+const INK = 'var(--pele-fg-on-dark,#fff)';
+const markerFills = (el: { inner: string }) => [...el.inner.matchAll(/class="pele-marker"[^>]*?fill="([^"]*)"/g)].map((m) => m[1]);
+const pathsOf = (el: { inner: string }) => [...el.inner.matchAll(/<path\b(?![^>]*class="pele-marker")[^>]*>/g)].map((m) => m[0]);
+
 describe('casings', () => {
   const FILLED = 'flowchart LR\n  E --> C\n  subgraph Air\n    C --> P\n  end\n  P --> R --> O --> E\n  style Air fill:#ffd';
+  const BAND =
+    'flowchart LR\n  I[Idea]\n  subgraph S\n    A[Spec]\n    B[Design]\n    C[Build]\n    D[Test]\n  end\n  I --> A --> B --> C --> D --> R[Retire] --> I\n  style S fill:#dbeafe';
+  // Wide spacing bows the arc from C to D out past the box and back in.
+  const BOWED = `---\nconfig:\n  layout: circular\n  flowchart:\n    nodeSpacing: 200\n---\nflowchart TB\n  subgraph S\n    A --> B --> C --> D --> E --> A\n  end\n  style S fill:#dbeafe`;
+  // A fill too faint for Pele to know the ink over it.
+  const faint = (body: string) => body.replace(/fill:(#\w+)/, 'fill:$1,fill-opacity:0.4');
 
-  const rectOf = (svg: string) => {
-    const rect = /<rect\b[^>]*>/.exec(childGroups(findGroup(svg, 'pele-clusters')!.inner)[0]!.inner)![0];
-    const [x, y, w, h] = ['x', 'y', 'width', 'height'].map((k) => Number(attr(rect, k))) as [number, number, number, number];
-    return { x, y, w, h };
-  };
-  const vertices = (d: string) => [...d.matchAll(/(-?[\d.]+),(-?[\d.]+)/g)].map((m) => [Number(m[1]), Number(m[2])] as const);
+  it('cases nothing: no halo, no knob, no tram tracks', () => {
+    const bodies = [
+      circular(FILLED),
+      circular(BAND),
+      BOWED,
+      circular(faint(FILLED)),
+      circular(faint(BAND)),
+      faint(BOWED),
+      circular(FILLED + '\n  linkStyle 0,1,2 stroke:#f00'),
+      circular(BAND.replace('I --> A', 'I ==> A')),
+    ];
+    for (const body of bodies) expect(findGroup(render(body).svg, 'pele-casings'), body).toBeUndefined();
+  });
 
-  it('draws a casing under each edge that crosses a filled group, and only those', () => {
-    const { svg } = render(circular(FILLED));
-    const { x, y, w, h } = rectOf(svg);
-    const inside = ([px, py]: readonly [number, number]) => px > x && px < x + w && py > y && py < y + h;
-    const crossing: string[] = [];
+  it('keeps the plain color of a line over a faint fill', () => {
+    const { svg } = render(circular(faint(FILLED)));
     for (const el of childGroups(findGroup(svg, 'pele-edges')!.inner)) {
-      const d = attr(/<path\b[^>]*>/.exec(el.inner)![0], 'd')!;
-      const v = vertices(d);
-      if (v.some(inside) && !v.every(inside)) crossing.push(d);
-    }
-    expect(crossing.length).toBeGreaterThan(0);
-    const casings = findGroup(svg, 'pele-casings')!;
-    const cased = [...casings.inner.matchAll(/<path d="([^"]*)"\/>/g)].map((m) => m[1]);
-    expect(cased).toEqual(crossing);
-  });
-
-  it("matches Pele's casing markup and layer order", () => {
-    const plain = render(FILLED).svg;
-    const { svg } = render(circular(FILLED));
-    const casings = findGroup(svg, 'pele-casings')!;
-    expect(casings.open).toBe(findGroup(plain, 'pele-casings')!.open);
-    expect(findGroup(svg, 'pele-clusters')!.end).toBeLessThanOrEqual(casings.start);
-    expect(casings.end).toBeLessThanOrEqual(findGroup(svg, 'pele-edges')!.start);
-    // A casing's arrowhead is page-colored and carries no marker class.
-    expect(casings.inner).toMatch(/<path d="[^"]*Z" fill="var\(--_bg\)" stroke="var\(--_bg\)"\/>/);
-    expect(casings.inner).not.toContain('pele-marker');
-  });
-
-  it("widens and fades a casing as Pele does for the edge's own style", () => {
-    // P ==> R crosses the box in both layouts; it is thick and faded.
-    const body = FILLED.replace('P --> R', 'P ==> R') + '\n  linkStyle 2 opacity:0.5';
-    const wrappers = (svg: string) => findGroup(svg, 'pele-casings')!.inner.match(/<g\b[^>]*>/g);
-    const own = wrappers(render(body).svg);
-    expect(own).toEqual(['<g stroke-width="6.5" style="opacity:0.5;">']);
-    expect(wrappers(render(circular(body)).svg)).toEqual(own);
-  });
-
-  it('draws no casings around a group without a fill', () => {
-    const { svg } = render(circular(FILLED.replace('\n  style Air fill:#ffd', '')));
-    expect(findGroup(svg, 'pele-casings')).toBeUndefined();
-  });
-
-  it('draws no casings around a group filled with nothing', () => {
-    for (const fill of ['none', 'transparent', '#ffd0', '#ffd,fill-opacity:0', '#ffd,opacity:0%']) {
-      const body = FILLED.replace('fill:#ffd', `fill:${fill}`);
-      // Pele itself draws none for this fill, so the wrapper must not.
-      expect(findGroup(render(body).svg, 'pele-casings'), fill).toBeUndefined();
-      expect(findGroup(render(circular(body)).svg, 'pele-casings'), fill).toBeUndefined();
+      expect(attr(el.open, 'stroke')).toBeUndefined();
+      for (const p of pathsOf(el)) expect(attr(p, 'stroke')).toBeUndefined();
+      for (const fill of markerFills(el)) expect(fill).toBe('var(--_l)');
     }
   });
 });
@@ -619,98 +598,175 @@ describe('casings', () => {
 describe('edge ink', () => {
   // A dark fill, so Pele's ink over it (light) differs from the plain line color.
   const DARK = 'style S fill:#003';
-  const edge = (svg: string, id: string) => childGroups(findGroup(svg, 'pele-edges')!.inner).find((el) => attr(el.open, 'data-id') === id)!;
-  const markerFills = (el: { inner: string }) => [...el.inner.matchAll(/class="pele-marker"[^>]*?fill="([^"]*)"/g)].map((m) => m[1]);
-  const cased = (svg: string, el: { inner: string }) =>
-    (findGroup(svg, 'pele-casings')?.inner ?? '').includes(`<path d="${attr(/<path\b[^>]*>/.exec(el.inner)![0], 'd')}"/>`);
+  const SIX = `flowchart LR\n  A --> B --> C --> D --> E --> F --> A\n  subgraph S\n    A\n    B\n    D\n  end\n  ${DARK}`;
 
   it("gives an edge over a fill Pele's ink for that fill, on its group and markers", () => {
     // The circle seats S's members A, B and D side by side, and keeps C
     // out of S's box. A --> B runs over the fill.
-    const body = `flowchart LR\n  A --> B --> C --> D --> E --> F --> A\n  subgraph S\n    A\n    B\n    D\n  end\n  ${DARK}`;
-    const plain = render(body).svg;
+    const plain = render(SIX).svg;
     // The ink Pele gives an edge over the same fill in its own layout.
-    const own = attr(edge(plain, 'L_A_B_0').open, 'stroke')!;
-    expect(own).toBe('var(--pele-fg-on-dark,#fff)');
-    const { svg } = render(circular(body));
-    const over = edge(svg, 'L_A_B_0');
+    const own = attr(edgeOf(plain, 'L_A_B_0').open, 'stroke')!;
+    expect(own).toBe(INK);
+    const { svg } = render(circular(SIX));
+    const over = edgeOf(svg, 'L_A_B_0');
     expect(attr(over.open, 'stroke')).toBe(own);
+    expect(pathsOf(over)).toHaveLength(1);
     expect(markerFills(over)).toEqual([own]);
-    expect(cased(svg, over)).toBe(false);
-    // B --> C leaves the box now that C sits outside it: no stale ink.
-    const across = edge(svg, 'L_B_C_0');
-    expect(attr(across.open, 'stroke')).toBeUndefined();
-    expect(cased(svg, across)).toBe(true);
+  });
+
+  it('inks each stretch of a line that crosses a border for what it runs over', () => {
+    // B --> C leaves the box now that C sits outside it; C --> D comes back.
+    const { svg } = render(circular(SIX));
+    const leaving = edgeOf(svg, 'L_B_C_0');
+    // No stale ink on the group: each path carries its own.
+    expect(attr(leaving.open, 'stroke')).toBeUndefined();
+    expect(pathsOf(leaving).map((p) => attr(p, 'stroke'))).toEqual([INK, undefined]);
+    // The arrowhead, outside, is the plain line color.
+    expect(markerFills(leaving)).toEqual(['var(--_l)']);
+    const entering = edgeOf(svg, 'L_C_D_0');
+    expect(pathsOf(entering).map((p) => attr(p, 'stroke'))).toEqual([undefined, INK]);
+    // The arrowhead inside the fill takes its ink.
+    expect(markerFills(entering)).toEqual([INK]);
+  });
+
+  it('meets the stretches of a solid line end to end, with butt ends', () => {
+    // Round ends overlap where two stretches meet, and a stroke-opacity
+    // would darken the overlap.
+    const { svg } = render(circular(SIX + '\n  linkStyle 1 stroke-opacity:0.5'));
+    for (const id of ['L_B_C_0', 'L_C_D_0']) {
+      const paths = pathsOf(edgeOf(svg, id));
+      expect(paths.length).toBe(2);
+      for (const p of paths) expect(attr(p, 'stroke-linecap')).toBe('butt');
+      const [a, b] = paths.map((p) => vertices(attr(p, 'd')!));
+      const end = a![a!.length - 1]!;
+      expect(Math.hypot(end[0] - b![0]![0], end[1] - b![0]![1])).toBeLessThan(0.02);
+    }
+  });
+
+  it("joins a dotted line's stretches in a gap, its dashes in step", () => {
+    const body = SIX.replace('B --> C', 'B -.-> C');
+    const { svg } = render(circular(body));
+    const [first, second] = pathsOf(edgeOf(svg, 'L_B_C_0'));
+    expect(attr(first!, 'stroke-dasharray')).toBe('3 4');
+    expect(attr(second!, 'stroke-dasharray')).toBe('3 4');
+    // Dashes keep their round ends.
+    expect(attr(second!, 'stroke-linecap')).toBeUndefined();
+    expect(attr(first!, 'stroke-dashoffset')).toBeUndefined();
+    const offset = Number(attr(second!, 'stroke-dashoffset'));
+    expect(offset).toBeCloseTo(length(vertices(attr(first!, 'd')!)), 0);
+    // Pele's dots are 3 on, 4 off: the join falls in the middle of a gap.
+    expect(offset % 7).toBeCloseTo(5, 1);
   });
 
   it('takes the ink of the innermost fill under an edge', () => {
     const body = 'flowchart LR\n  A --> B --> C --> D --> A\n  subgraph S\n    subgraph I\n      A --> B\n    end\n    C\n  end\n  style S fill:#003\n  style I fill:#ffd';
-    const plain = edge(render(body).svg, 'L_A_B_0');
+    const plain = edgeOf(render(body).svg, 'L_A_B_0');
     expect(attr(plain.open, 'stroke')).toBe('var(--pele-fg-on-light,#1f1f1f)');
     const { svg } = render(circular(body));
     // The same opening tag as Pele's, ink and all.
-    expect(edge(svg, 'L_A_B_0').open).toBe(plain.open);
+    expect(edgeOf(svg, 'L_A_B_0').open).toBe(plain.open);
   });
 
-  it('drops the stale ink of an edge moved onto a border, and cases it', () => {
+  it('drops the stale ink of an edge bowed past a border, and inks it stretch by stretch', () => {
     // Wide spacing bows the rim's arcs out past the box around them.
     const body = `flowchart TB\n  subgraph S\n    A --> B --> C --> D --> E --> A\n  end\n  ${DARK}`;
     const plain = render(body).svg;
     const wide = render(`---\nconfig:\n  layout: circular\n  flowchart:\n    nodeSpacing: 200\n---\n${body}`).svg;
-    const off = childGroups(findGroup(wide, 'pele-edges')!.inner).filter((el) => cased(wide, el));
+    const off = childGroups(findGroup(wide, 'pele-edges')!.inner).filter((el) => pathsOf(el).length > 1);
     expect(off.length).toBeGreaterThan(0);
     for (const el of off) {
       // Pele drew this edge over the fill, with its ink.
-      expect(attr(edge(plain, attr(el.open, 'data-id')!).open, 'stroke')).toBeDefined();
+      expect(attr(edgeOf(plain, attr(el.open, 'data-id')!).open, 'stroke')).toBe(INK);
       expect(attr(el.open, 'stroke')).toBeUndefined();
-      expect(markerFills(el)).toEqual(['var(--_l)']);
+      // In, out past the border, and back in.
+      expect(pathsOf(el).map((p) => attr(p, 'stroke'))).toEqual([INK, undefined, INK]);
+      expect(markerFills(el)).toEqual([INK]);
     }
   });
 
-  it("keeps an edge's own stroke color, and cases it over a fill, as Pele does", () => {
-    // Pele gives no ink to a line with its own stroke: it cases it instead.
+  it("keeps an edge's own stroke color over a fill, uncased", () => {
     const body = `flowchart LR\n  A --> B --> C --> D --> A\n  subgraph S\n    A --> B\n  end\n  ${DARK}\n  linkStyle 0 stroke:#f00`;
-    const plain = render(body).svg;
-    expect(cased(plain, edge(plain, 'L_A_B_0'))).toBe(true);
     const { svg } = render(circular(body));
-    const own = edge(svg, 'L_A_B_0');
+    const own = edgeOf(svg, 'L_A_B_0');
     expect(attr(own.open, 'stroke')).toBeUndefined();
+    expect(pathsOf(own).map((p) => attr(p, 'stroke'))).toEqual([undefined]);
     expect(markerFills(own)).toEqual(['#f00']);
-    expect(cased(svg, own)).toBe(true);
+    expect(findGroup(svg, 'pele-casings')).toBeUndefined();
   });
 
-  it("inks an edge over a band's fill, and cases one across its border", () => {
+  it("inks an edge over a band's fill, and splits one across its border", () => {
     const body =
       'flowchart LR\n  I[Idea]\n  subgraph S\n    A[Spec]\n    B[Design]\n    C[Build]\n    D[Test]\n    E[Deploy]\n    F[Monitor]\n  end\n' +
       `  I --> A --> B --> C --> D --> E --> F --> R[Retire] --> I\n  ${DARK}`;
     const { svg } = render(circular(body));
     expect(clustersOf(svg).get('S')!.kind).toBe('band');
-    const inside = edge(svg, 'L_B_C_0');
-    expect(attr(inside.open, 'stroke')).toBe('var(--pele-fg-on-dark,#fff)');
-    expect(cased(svg, inside)).toBe(false);
-    expect(cased(svg, edge(svg, 'L_I_A_0'))).toBe(true);
+    const inside = edgeOf(svg, 'L_B_C_0');
+    expect(attr(inside.open, 'stroke')).toBe(INK);
+    const entering = edgeOf(svg, 'L_I_A_0');
+    expect(pathsOf(entering).map((p) => attr(p, 'stroke'))).toEqual([undefined, INK]);
+    expect(markerFills(entering)).toEqual([INK]);
   });
 
-  describe('the ink decision', () => {
+  describe('the paint decision', () => {
     // No realistic diagram moves an inked edge wholly off its fill: the
     // circle keeps a group's members together inside its box. So the
     // off-fill branch is checked on synthetic lines.
     const fill = { box: { minX: 0, minY: 0, maxX: 100, maxY: 100 }, style: ' style="rx:var(--_r);fill:#003;"' };
+    const ends = (pts: { x: number; y: number }[]) => [pts[0]!, pts[pts.length - 1]!] as const;
     const inside = [{ x: 20, y: 50 }, { x: 80, y: 50 }];
+    const span = (pts: { x: number }[]) => [pts[0]!.x, pts[pts.length - 1]!.x];
 
-    it('inks a line wholly over a fill', () => {
-      expect(overFills(inside, inside, [fill], '')).toBe('var(--pele-fg-on-dark,#fff)');
+    it('inks a line wholly over a fill, and its markers', () => {
+      const { stretches, tips } = paintLine(inside, [fill], '', ends(inside));
+      expect(stretches.map((s) => s.ink)).toEqual([INK]);
+      expect(tips).toEqual([INK, INK]);
     });
 
-    it('gives no ink and no casing to a line off every fill', () => {
+    it('gives no ink to a line off every fill', () => {
       const off = [{ x: 120, y: 50 }, { x: 180, y: 50 }];
-      expect(overFills(off, off, [fill], '')).toBeUndefined();
+      const { stretches, tips } = paintLine(off, [fill], '', ends(off));
+      expect(stretches.map((s) => s.ink)).toEqual([undefined]);
+      expect(tips).toEqual([undefined, undefined]);
     });
 
-    it('cases a line across a border, or with its own stroke', () => {
+    it('splits a line at the border and inks the inside', () => {
       const across = [{ x: 50, y: 50 }, { x: 150, y: 50 }];
-      expect(overFills(across, across, [fill], '')).toBe('');
-      expect(overFills(inside, inside, [fill], ' style="stroke:#f00;"')).toBe('');
+      const { stretches } = paintLine(across, [fill], '', ends(across));
+      expect(stretches.map((s) => s.ink)).toEqual([INK, undefined]);
+      expect(span(stretches[0]!.points)[1]).toBeCloseTo(100, 0);
+      expect(span(stretches[1]!.points)[0]).toBeCloseTo(100, 0);
+      expect(stretches[1]!.at).toBeCloseTo(50, 0);
+    });
+
+    it('inks a marker for the fill under its tip, not under the line end', () => {
+      // The line stops 2px short of the border, the arrowhead's tip 6px past it.
+      const short = [{ x: 150, y: 50 }, { x: 102, y: 50 }];
+      const { stretches, tips } = paintLine(short, [fill], '', [short[0]!, { x: 94, y: 50 }]);
+      expect(stretches.map((s) => s.ink)).toEqual([undefined]);
+      expect(tips).toEqual([undefined, INK]);
+    });
+
+    it('keeps the plain color over a fill with its own stroke or an unknown ink', () => {
+      expect(paintLine(inside, [fill], ' style="stroke:#f00;"', ends(inside)).stretches.map((s) => s.ink)).toEqual([undefined]);
+      const pale = { ...fill, style: ' style="fill:#003;fill-opacity:0.4;"' };
+      expect(paintLine(inside, [pale], '', ends(inside)).tips).toEqual([undefined, undefined]);
+    });
+
+    it('moves a dashed join to the middle of the nearest gap', () => {
+      const across = [{ x: 50, y: 50 }, { x: 150, y: 50 }];
+      // 3 on, 4 off from x = 50: the gap nearest the border, at 50 px
+      // along, is 45 to 49, so the join moves to 47 px along.
+      const { stretches } = paintLine(across, [fill], '', ends(across), [3, 4]);
+      expect(stretches[1]!.at).toBeCloseTo(47, 5);
+      expect(span(stretches[0]!.points)[1]).toBeCloseTo(97, 5);
+    });
+
+    it('reads a dash pattern as SVG does', () => {
+      expect(dashPattern('3 4')).toEqual([3, 4]);
+      expect(dashPattern('5,2,1')).toEqual([5, 2, 1, 5, 2, 1]);
+      expect(dashPattern('none')).toBeUndefined();
+      expect(dashPattern('var(--d)')).toBeUndefined();
+      expect(dashPattern(undefined)).toBeUndefined();
     });
   });
 });
