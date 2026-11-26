@@ -38,7 +38,8 @@ top uses the room Pele leaves for a title.
 
 A group is a box whenever a box around it can clear, however much of
 the ring it covers. layout-circular prefers the turn whose boxes are
-tightest, then the least turn.
+tightest, then the least turn. Where no turn clears with the titles on
+top, a box may put its title below instead.
 
 A band is a curved strip that follows the ring. A group gets one only
 when no box around it clears, for example when a box would cover a hub
