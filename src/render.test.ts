@@ -251,12 +251,11 @@ describe('withCircularLayout', () => {
       const b = markupBox(n.inner);
       return { minX: n.x + b.minX, maxX: n.x + b.maxX, maxY: n.y + b.maxY };
     });
-    const top = Math.min(...['R', 'O'].map((id) => nodes.get(id)!.y + markupBox(nodes.get(id)!.inner).minY));
     // Pele's tight group padding, 12px, at the left, the right and the
-    // top, where Pele's layout left 40. Land's title room is below.
+    // bottom, where Pele's layout left 40.
     expect(Math.min(...sides.map((r) => r.minX)) - box.x).toBeCloseTo(12, 0);
     expect(box.x + box.w - Math.max(...sides.map((r) => r.maxX))).toBeCloseTo(12, 0);
-    expect(top - box.y).toBeCloseTo(12, 0);
+    expect(box.y + box.h - Math.max(...sides.map((r) => r.maxY))).toBeCloseTo(12, 0);
   });
 
   // A hub outside a four-of-six group: every box around the four
@@ -345,7 +344,7 @@ describe('withCircularLayout', () => {
     expectClear(svg, { Delivery: ['C', 'D'] });
   });
 
-  it("puts the water cycle's titles below, where on top they would meet Evaporation", () => {
+  it('keeps the water cycle\'s titles on top', () => {
     const { svg } = render(
       circular(
         'flowchart LR\n  E[Evaporation] --> C[Condensation]\n  subgraph Atmosphere\n    C --> P[Precipitation]\n  end\n' +
@@ -354,7 +353,7 @@ describe('withCircularLayout', () => {
     );
     for (const [g, m] of [['Atmosphere', ['C', 'P']], ['Land', ['R', 'O']]] as const) {
       const t = titleAndMembers(svg, g, [...m]);
-      expect(t.y, g).toBeGreaterThan(t.bottom);
+      expect(t.y, g).toBeLessThan(t.top);
     }
   });
 

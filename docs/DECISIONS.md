@@ -266,10 +266,9 @@ Append-only, dated. The plan these belong to is `docs/PLAN.md`.
   edge over a band by testing the outline polygon. Its own `Band` type
   and `bandPath` are gone. Tests that pinned the old rule were
   rewritten. The six-of-eight "Funded" diagram is a box now, so the
-  band tests use a hub outside a four-of-six group. In the water cycle
-  both titles now sit below their boxes, where on top they would meet
-  Evaporation unless the ring grew; the owner's earlier "titles on
-  top" there is reversed by this rule and is flagged for judgment. The
+  band tests use a hub outside a four-of-six group. A title goes below
+  only instead of a turn, never instead of growth, so the water
+  cycle keeps its titles on top. The
   test of ink on an arc bowed past its box became a test that the
   arcs stay inside: the core's box now holds them. The README and
   gallery pictures, and the `lifecycle-band` demo case, still show the
