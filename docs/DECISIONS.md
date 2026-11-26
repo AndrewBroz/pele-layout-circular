@@ -256,20 +256,15 @@ Append-only, dated. The plan these belong to is `docs/PLAN.md`.
   `.pele-edge` no longer recolors that stretch. HOW-IT-WORKS says to
   aim at `.pele-edge path`. A line in one stretch keeps its ink on
   the group, as in Pele.
-- **2026-11-25 — Provisional: bands drawn from the core's outline.**
-  Pending the owner's judgment of renders, on branch
+- **2026-11-25 — Provisional: groups by fit, with the title allowed
+  below.** Pending the owner's judgment of renders, on branch
   `feat/fit-groups`; not settled. It follows layout-circular's
   provisional rule on the same branch: a group is a box when one
-  clears, a box may put its title below rather than turn the ring, and
-  a band is a traced outline instead of an annular sector. The wrapper
-  draws a band's path with the core's `outlinePath`, and paints an
-  edge over a band by testing the outline polygon. Its own `Band` type
-  and `bandPath` are gone. Tests that pinned the old rule were
-  rewritten. The six-of-eight "Funded" diagram is a box now, so the
-  band tests use a hub outside a four-of-six group. A title goes below
-  only instead of a turn, never instead of growth, so the water
-  cycle keeps its titles on top. The
-  test of ink on an arc bowed past its box became a test that the
-  arcs stay inside: the core's box now holds them. The README and
-  gallery pictures, and the `lifecycle-band` demo case, still show the
-  old band; they wait for the owner's verdict.
+  clears, and a box may put its title below rather than turn the ring,
+  never instead of growth, so the water cycle keeps its titles on top.
+  Bands are drawn as on main. The band tests now use a hub outside a
+  four-of-six group, since the six-of-eight "Funded" diagram is a box
+  under the new rule. The test of ink on an arc bowed past its box
+  became a test that the arcs stay inside: the core's box now holds
+  them. The README and gallery pictures, and the `lifecycle-band` demo
+  case, still show the old band; they wait for the owner's verdict.

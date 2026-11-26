@@ -1,6 +1,7 @@
-import { circularLayout, groupBounds, outlinePath } from 'layout-circular';
+import { circularLayout, groupBounds } from 'layout-circular';
 import type {
   CircularLayoutOptions,
+  GroupBand,
   GroupShape,
   LayoutEdgeInput,
   LayoutGroupInput,
@@ -123,30 +124,32 @@ const clips = (a: Point, b: Point, box: Box): boolean => {
 
 /** A filled group box, and its rect's style attribute as Pele wrote
  *  it (`Fill` in Pele's `svg/edges.ts`). A group drawn as a band along
- *  the ring also carries the band's outline, and `box` is its bounds. */
+ *  the ring also carries the band, and `box` is its bounds. */
 export interface Fill {
   box: Box;
   style: string;
-  band?: Point[];
+  band?: Band;
 }
 
-/** How far a point lies inside a closed outline, px: negative outside. */
-const insideOutline = (outline: Point[], p: Point): number => {
-  let near = Infinity;
-  let inside = false;
-  for (let i = 0, j = outline.length - 1; i < outline.length; j = i++) {
-    const a = outline[i]!;
-    const b = outline[j]!;
-    const vx = b.x - a.x;
-    const vy = b.y - a.y;
-    const len2 = vx * vx + vy * vy;
-    const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * vx + (p.y - a.y) * vy) / len2));
-    near = Math.min(near, Math.hypot(p.x - a.x - t * vx, p.y - a.y - t * vy));
-    // Even-odd: a ray to the right crosses the wall an odd number of
-    // times from inside.
-    if (a.y > p.y !== b.y > p.y && p.x < (vx * (p.y - a.y)) / vy + a.x) inside = !inside;
-  }
-  return inside ? near : -near;
+/** A slice of an annulus around (cx, cy), swept clockwise. */
+export interface Band {
+  cx: number;
+  cy: number;
+  rIn: number;
+  rOut: number;
+  start: number;
+  end: number;
+}
+
+/** How far a point lies inside a band, px: negative outside. */
+const insideBand = (b: Band, p: Point): number => {
+  const rho = Math.hypot(p.x - b.cx, p.y - b.cy);
+  const tau = 2 * Math.PI;
+  const into = (((Math.atan2(p.y - b.cy, p.x - b.cx) - b.start) % tau) + tau) % tau;
+  const sweep = b.end - b.start;
+  // Past the end ray, the angle wraps round to just short of a turn.
+  const toEnds = into <= sweep ? Math.min(into, sweep - into) : -Math.min(into - sweep, tau - into);
+  return Math.min(rho - b.rIn, b.rOut - rho, rho * Math.sin(Math.max(-Math.PI / 2, Math.min(Math.PI / 2, toEnds))));
 };
 
 /** The line's points, with a point every pixel or closer between
@@ -168,22 +171,14 @@ const dense = (line: Point[]): Point[] => {
  *  box's corner, the nearer side counts: only the sign, and the depth
  *  within a pixel of a border, are read. */
 const depth = (fill: Fill, p: Point): number => {
-  if (fill.band) return insideOutline(fill.band, p);
+  if (fill.band) return insideBand(fill.band, p);
   const b = fill.box;
   return Math.min(p.x - b.minX, b.maxX - p.x, p.y - b.minY, b.maxY - p.y);
 };
 
 const fillArea = (fill: Fill): number => {
   const b = fill.band;
-  if (b) {
-    // The shoelace formula.
-    let twice = 0;
-    b.forEach((p, i) => {
-      const q = b[(i + 1) % b.length]!;
-      twice += p.x * q.y - q.x * p.y;
-    });
-    return Math.abs(twice) / 2;
-  }
+  if (b) return ((b.end - b.start) / 2) * (b.rOut * b.rOut - b.rIn * b.rIn);
   return (fill.box.maxX - fill.box.minX) * (fill.box.maxY - fill.box.minY);
 };
 
@@ -444,6 +439,14 @@ const titleOf = (markup: string, box: Box, side: number, fontSize: number): Titl
   return { at: { x: cx, y: box.minY + TITLE_DROP + height / 2 }, width: Math.max(0, Math.min(width, room)), height };
 };
 
+/** A band's outline: the outer arc clockwise, the inner arc back. */
+const bandPath = (b: GroupBand, ox: number, oy: number): string => {
+  const at = (r: number, a: number) => `${num(ox + b.center.x + r * Math.cos(a))},${num(oy + b.center.y + r * Math.sin(a))}`;
+  const large = b.endAngle - b.startAngle > Math.PI ? 1 : 0;
+  const outer = `M${at(b.outerRadius, b.startAngle)}A${num(b.outerRadius)},${num(b.outerRadius)} 0 ${large} 1 ${at(b.outerRadius, b.endAngle)}`;
+  if (b.innerRadius <= 0) return `${outer}L${num(ox + b.center.x)},${num(oy + b.center.y)}Z`;
+  return `${outer}L${at(b.innerRadius, b.endAngle)}A${num(b.innerRadius)},${num(b.innerRadius)} 0 ${large} 0 ${at(b.innerRadius, b.startAngle)}Z`;
+};
 
 export const renderCircular = (
   model: FlowchartModel,
@@ -649,7 +652,8 @@ export const renderCircular = (
     if (shape.kind === 'box') {
       fills.push({ box, style });
     } else {
-      fills.push({ box, style, band: shape.outline.map((p) => ({ x: p.x + ox, y: p.y + oy })) });
+      const { center, innerRadius: rIn, outerRadius: rOut, startAngle: start, endAngle: end } = shape;
+      fills.push({ box, style, band: { cx: center.x + ox, cy: center.y + oy, rIn, rOut, start, end } });
     }
   }
 
@@ -808,7 +812,7 @@ export const renderCircular = (
       wall = withAttr(
         rectTag.replace(/^<rect\b/, '<path').replace(/\s(?:x|y|width|height)="[^"]*"/g, ''),
         'd',
-        outlinePath(shape.outline, ox, oy)
+        bandPath(shape, ox, oy)
       );
     }
     clusterShift.set(id!, { x: dx, y: dy });

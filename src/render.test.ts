@@ -28,9 +28,10 @@ const nodesOf = (svg: string): Map<string, Node> => {
 };
 
 /** Each group's shape, as drawn: a box from its rect, or a band from
- *  its path, a closed polygon of `M` and `L` points. */
-type Shape = { kind: 'box'; x: number; y: number; w: number; h: number } | { kind: 'band'; pts: { x: number; y: number }[] };
-
+ *  its path, `M` outer start, outer arc, `L` inner end, inner arc. */
+type Shape =
+  | { kind: 'box'; x: number; y: number; w: number; h: number }
+  | { kind: 'band'; cx: number; cy: number; rIn: number; rOut: number; start: number; sweep: number };
 const clustersOf = (svg: string) => {
   const out = new Map<string, Shape>();
   for (const el of childGroups(findGroup(svg, 'pele-clusters')!.inner)) {
@@ -42,35 +43,27 @@ const clustersOf = (svg: string) => {
       continue;
     }
     const d = attr(/<path\b[^>]*>/.exec(el.inner)![0], 'd')!;
-    const pts = [...d.matchAll(/[ML](-?[\d.]+),(-?[\d.]+)/g)].map((m) => ({ x: Number(m[1]), y: Number(m[2]) }));
-    out.set(id, { kind: 'band', pts });
+    const n = [...d.matchAll(/-?[\d.]+/g)].map((m) => Number(m[0]));
+    // M sx,sy A r,r 0 large 1 ex,ey L ix,iy A q,q 0 large 0 jx,jy Z
+    const [sx, sy, rOut, , , large, , ex, ey, , , rIn] = n as number[];
+    // The center: on the bisector of the outer chord, rOut from its ends.
+    const mx = (sx! + ex!) / 2;
+    const my = (sy! + ey!) / 2;
+    const half = Math.hypot(ex! - sx!, ey! - sy!) / 2;
+    const along = Math.sqrt(Math.max(0, rOut! * rOut! - half * half));
+    // Clockwise from start to end; a large arc puts the center on the
+    // other side of the chord.
+    const nx = -(ey! - sy!) / (2 * half);
+    const ny = (ex! - sx!) / (2 * half);
+    const side = large ? -1 : 1;
+    const cx = mx + nx * along * side;
+    const cy = my + ny * along * side;
+    const start = Math.atan2(sy! - cy, sx! - cx);
+    let sweep = Math.atan2(ey! - cy, ex! - cx) - start;
+    while (sweep <= 0) sweep += 2 * Math.PI;
+    out.set(id, { kind: 'band', cx, cy, rIn: rIn!, rOut: rOut!, start, sweep });
   }
   return out;
-};
-
-/** Whether a point lies inside a band's polygon, even-odd. */
-const inBand = (pts: { x: number; y: number }[], x: number, y: number): boolean => {
-  let inside = false;
-  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
-    const a = pts[i]!;
-    const b = pts[j]!;
-    if (a.y > y !== b.y > y && x < ((b.x - a.x) * (y - a.y)) / (b.y - a.y) + a.x) inside = !inside;
-  }
-  return inside;
-};
-
-/** The distance from a point to a band's wall. */
-const toWall = (pts: { x: number; y: number }[], x: number, y: number): number => {
-  let d = Infinity;
-  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
-    const a = pts[i]!;
-    const b = pts[j]!;
-    const vx = b.x - a.x;
-    const vy = b.y - a.y;
-    const t = Math.max(0, Math.min(1, ((x - a.x) * vx + (y - a.y) * vy) / (vx * vx + vy * vy || 1)));
-    d = Math.min(d, Math.hypot(x - a.x - t * vx, y - a.y - t * vy));
-  }
-  return d;
 };
 
 /** Whether a shape covers any point of a rect, sampled every 2px. */
@@ -78,7 +71,9 @@ const covers = (s: Shape, r: { minX: number; minY: number; maxX: number; maxY: n
   if (s.kind === 'box') return s.x < r.maxX && s.x + s.w > r.minX && s.y < r.maxY && s.y + s.h > r.minY;
   for (let x = r.minX; x <= r.maxX; x += 2) {
     for (let y = r.minY; y <= r.maxY; y += 2) {
-      if (inBand(s.pts, x, y)) return true;
+      const rho = Math.hypot(x - s.cx, y - s.cy);
+      const into = (((Math.atan2(y - s.cy, x - s.cx) - s.start) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+      if (rho >= s.rIn && rho <= s.rOut && into <= s.sweep) return true;
     }
   }
   return false;
@@ -277,7 +272,7 @@ describe('withCircularLayout', () => {
     expectClear(svg, { Core: ['A', 'B', 'C', 'D'] });
   });
 
-  it("seats a band's title outside the band, close to its wall", () => {
+  it("seats a band's title outside the band, near its middle", () => {
     const { svg } = render(circular(CORE));
     const band = clustersOf(svg).get('Core')!;
     if (band.kind !== 'band') throw new Error('expected a band');
@@ -286,10 +281,12 @@ describe('withCircularLayout', () => {
     const move = /translate\(([-\d.]+),([-\d.]+)\)/.exec(el.inner)!;
     const x = Number(attr(text, 'x')) + Number(move[1]);
     const y = Number(attr(text, 'y')) + Number(move[2]);
-    expect(inBand(band.pts, x, y)).toBe(false);
-    // The core seats the title 6px past the wall; Pele's text runs from
-    // the title's left edge, so its anchor sits within a title's width.
-    expect(toWall(band.pts, x, y)).toBeLessThan(60);
+    const rho = Math.hypot(x - band.cx, y - band.cy);
+    expect(rho).toBeGreaterThan(band.rOut);
+    expect(rho).toBeLessThan(band.rOut + 60);
+    const mid = band.start + band.sweep / 2;
+    const off = Math.atan2(y - band.cy, x - band.cx) - mid;
+    expect(Math.abs(Math.atan2(Math.sin(off), Math.cos(off)))).toBeLessThan(0.3);
   });
 
   it("inks a band's title for the page behind it, not for the band's fill", () => {
@@ -313,7 +310,8 @@ describe('withCircularLayout', () => {
     const outer = shapes.get('Core')!;
     const inner = shapes.get('Inner')!;
     if (outer.kind !== 'band' || inner.kind !== 'band') throw new Error('expected bands');
-    for (const p of inner.pts) expect(inBand(outer.pts, p.x, p.y)).toBe(true);
+    expect(inner.rIn).toBeGreaterThan(outer.rIn);
+    expect(inner.rOut).toBeLessThan(outer.rOut);
     expectClear(svg, { Core: ['A', 'B', 'C', 'D'], Inner: ['B', 'C'] });
   });
 

@@ -42,10 +42,9 @@ tightest, then the least turn.
 
 A band is a curved strip that follows the ring. A group gets one only
 when no box around it clears, for example when a box would cover a hub
-outside the group. Its outline comes from layout-circular. The wrapper
-turns Pele's group rectangle into a path along that outline. The path
-keeps the rectangle's class, `data-id`, fill and style, so themes and
-CSS still apply.
+outside the group. The wrapper turns Pele's group rectangle into a
+path for the band. The path keeps the rectangle's class, `data-id`,
+fill and style, so themes and CSS still apply.
 
 A band's title sits right outside the band. A band nested inside
 another band puts its title between the two.
@@ -90,4 +89,4 @@ doesn't darken the join. A dashed arrow's parts meet in a dash gap,
 and its dashes run on from one part to the next.
 
 This works over boxes and bands alike. For a band, the wrapper tests
-the band's outline itself, not the rectangle around it.
+the curved strip itself, not the rectangle around it.
