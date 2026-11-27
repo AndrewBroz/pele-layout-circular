@@ -2,9 +2,10 @@
 
 A circular layout for Pele flowcharts.
 
-Try it in the
-[playground](https://andrewbroz.github.io/pele-layout-circular/).
-Pick an example, edit its text, and switch the settings on and off.
+> [!tip]
+> Try out `pele-layout-circular` live in the
+[playground](https://andrewbroz.github.io/pele-layout-circular/)!
+> Pick an example, edit the code, and explore the settings.
 
 [Pele](https://pele.run) draws mermaid diagrams as SVG. mermaid is a
 language for writing diagrams as text. Pele reads that language. It is
