@@ -2,6 +2,10 @@
 
 A circular layout for Pele flowcharts.
 
+Try it in the
+[playground](https://andrewbroz.github.io/pele-layout-circular/).
+Pick an example, edit its text, and switch the settings on and off.
+
 [Pele](https://pele.run) draws mermaid diagrams as SVG. mermaid is a
 language for writing diagrams as text. Pele reads that language. It is
 smaller than mermaid and runs without a browser. Obsidian uses it to
@@ -37,10 +41,6 @@ flowchart LR
 Pele's own layout draws the same text like this:
 
 <img src="docs/media/water-cycle-pele.svg" width="490" alt="The same five boxes in a row, with one long arrow looping back from Collection to Evaporation.">
-
-Try it in the
-[playground](https://andrewbroz.github.io/pele-layout-circular/).
-Pick an example, edit its text, and switch the settings on and off.
 
 ## Which package to use
 
